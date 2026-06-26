@@ -857,6 +857,24 @@ function sincronizar(){
       salvarDB(); 
     }
   }).catch(()=>{});
+  // Busca pontos do campo
+  fetch(url+'?acao=getPontos').then(function(r){ return r.json(); }).then(function(data){
+    if(data && data.pontos && data.pontos.length){
+      data.pontos.forEach(function(p){
+        if(!p.colaboradorId || !p.data) return;
+        var key = 'ponto_gestao_'+p.colaboradorId+'_'+p.data;
+        // Só salva se não existir ou se tiver mais dados
+        var existente = localStorage.getItem(key);
+        if(!existente || p.saida){
+          localStorage.setItem(key, JSON.stringify(p));
+        }
+      });
+      // Atualizar tela se estiver em registros de ponto
+      if(typeof renderPontoRegs === 'function') renderPontoRegs();
+      if(typeof renderPontoBanco === 'function') renderPontoBanco();
+    }
+  }).catch(function(){});
+
 }
 
 // ===== COLABORADORES =====
