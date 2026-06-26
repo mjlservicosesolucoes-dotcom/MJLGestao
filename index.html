@@ -1806,8 +1806,12 @@ function renderTarefasPorDia(){
   container.innerHTML = html;
 }
 
+function escaparHTML(s){ 
+  return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;'); 
+}
 function renderTarefaItem(dia, txt, idx){
-  var txtSafe = txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  var txtSafe = escaparHTML(txt);
+  var btnId = 'del-'+dia+'-'+idx;
   return '<div class="tarefa-item" data-txt="'+txtSafe+'"><span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span><span class="ti-txt">'+txt+'</span><button class="ti-del" onclick="removerTarefa('+dia+',this)">×</button></div>';
 }
 
