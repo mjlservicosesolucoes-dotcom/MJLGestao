@@ -860,16 +860,17 @@ function sincronizar(){
   // Busca pontos do campo
   fetch(url+'?acao=getPontos').then(function(r){ return r.json(); }).then(function(data){
     if(data && data.pontos && data.pontos.length){
+      // Guardar em memória E no localStorage
+      PONTOS_SHEETS = data.pontos;
       data.pontos.forEach(function(p){
         if(!p.colaboradorId || !p.data) return;
         var key = 'ponto_gestao_'+p.colaboradorId+'_'+p.data;
-        // Só salva se não existir ou se tiver mais dados
         var existente = localStorage.getItem(key);
         if(!existente || p.saida){
           localStorage.setItem(key, JSON.stringify(p));
         }
       });
-      // Atualizar tela se estiver em registros de ponto
+      // Renderizar se estiver na tela de ponto
       if(typeof renderPontoRegs === 'function') renderPontoRegs();
       if(typeof renderPontoBanco === 'function') renderPontoBanco();
     }
@@ -1449,7 +1450,17 @@ function mToHH(min){const neg=min<0;const abs=Math.abs(min);const h=Math.floor(a
 function isNotP(hora){if(!hora)return false;const m=parseHP(hora);return m>=22*60||m<5*60;}
 
 function lerPontoG(colId,data){
-  return ler('ponto_gestao_'+colId+'_'+data, ler('ponto_'+colId+'_'+data, null));
+  // Tentar localStorage primeiro
+  var local = ler('ponto_gestao_'+colId+'_'+data, ler('ponto_'+colId+'_'+data, null));
+  if(local) return local;
+  // Fallback: buscar nos pontos vindos do Sheets (em memória)
+  if(PONTOS_SHEETS && PONTOS_SHEETS.length){
+    var encontrado = PONTOS_SHEETS.find(function(p){
+      return p.colaboradorId === colId && p.data === data;
+    });
+    if(encontrado) return encontrado;
+  }
+  return null;
 }
 
 function calcHorasG(p,col){
