@@ -838,19 +838,19 @@ function sincronizar(){
   const pc={acao:'setChamados',chamados:DB.chamados};
   fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pc)}).catch(()=>{});
   // Busca registros e dados do campo
-  fetch(url+'?acao=getRegistros').then(r=>r.json()).then(data=>{
+  fetch(url+'?acao=getRegistros',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.registros){ data.registros.forEach(r=>{ if(!DB.registros.find(x=>x.id===r.id)) DB.registros.push(r); }); salvarDB(); renderDash(); }
   }).catch(()=>{});
-  fetch(url+'?acao=getChamados').then(r=>r.json()).then(data=>{
+  fetch(url+'?acao=getChamados',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.chamados){ data.chamados.forEach(c=>{ const idx=DB.chamados.findIndex(x=>x.id===c.id); if(idx>=0) DB.chamados[idx]={...DB.chamados[idx],...c}; else DB.chamados.push(c); }); salvarDB(); renderDash(); atualizarBadges(); }
   }).catch(()=>{});
-  fetch(url+'?acao=getOuvidoria').then(r=>r.json()).then(data=>{
+  fetch(url+'?acao=getOuvidoria',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.ouvidoria){ data.ouvidoria.forEach(o=>{ if(!DB.ouvidoria.find(x=>x.id===o.id)) DB.ouvidoria.push(o); }); salvarDB(); atualizarBadges(); }
   }).catch(()=>{});
-  fetch(url+'?acao=getAssinaturas').then(r=>r.json()).then(data=>{
+  fetch(url+'?acao=getAssinaturas',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.assinaturas){ data.assinaturas.forEach(a=>{ if(!DB.assinaturas.find(x=>x.id===a.id)) DB.assinaturas.push(a); }); salvarDB(); }
   }).catch(()=>{});
-  fetch(url+'?acao=getAceitesLGPD').then(r=>r.json()).then(data=>{
+  fetch(url+'?acao=getAceitesLGPD',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.aceites){ 
       if(!DB.aceitesLGPD) DB.aceitesLGPD=[];
       data.aceites.forEach(a=>{ if(!DB.aceitesLGPD.find(x=>x.colaboradorId===a.colaboradorId)) DB.aceitesLGPD.push(a); }); 
@@ -858,7 +858,7 @@ function sincronizar(){
     }
   }).catch(()=>{});
   // Busca pontos do campo
-  fetch(url+'?acao=getPontos').then(function(r){ return r.json(); }).then(function(data){
+  fetch(url+'?acao=getPontos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(data){
     if(data && data.pontos && data.pontos.length){
       // Guardar em memória E no localStorage
       PONTOS_SHEETS = data.pontos;
