@@ -1521,8 +1521,34 @@ function renderPontoRegs(){
   const data=filtData||hoje;
   const colsFilt=filtCol?cols.filter(c=>c.id===filtCol):cols;
   const linhas=[];
+  // Se não tem colaboradores cadastrados mas tem pontos, mostrar direto do Sheets
+  if(!colsFilt.length && PONTOS_SHEETS && PONTOS_SHEETS.length){
+    const pontosDia = PONTOS_SHEETS.filter(p=>p.data===data);
+    pontosDia.forEach(p=>{
+      const dt=new Date(data+'T12:00:00');
+      linhas.push(`<tr>
+        <td>${data}</td><td>${DIAS_P[dt.getDay()]||''}</td>
+        <td><strong>${p.colaboradorNome||'—'}</strong></td>
+        <td>${p.entrada||'—'}</td>
+        <td>${p.saida_alm||p.saida_almoco||'—'}</td>
+        <td>${p.volta_alm||p.volta_almoco||'—'}</td>
+        <td>${p.saida||'—'}</td>
+        <td>${p.horas_trab?mToHH(p.horas_trab):'—'}</td>
+        <td>—</td>
+        <td><span class="badge ${(p.saldo_dia||0)>=0?'b-ativo':'b-afastado'}">${((p.saldo_dia||0)>=0?'+':'')+mToHH(p.saldo_dia||0)}</span></td>
+        <td>${p.obs||'—'}</td>
+        <td></td>
+      </tr>`);
+    });
+    tb.innerHTML=linhas.join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:14px">Nenhum registro.</td></tr>';
+    return;
+  }
   colsFilt.forEach(col=>{
-    const p=lerPontoG(col.id,data);
+    // Tentar localStorage, depois PONTOS_SHEETS
+    var p=lerPontoG(col.id,data);
+    if(!p && PONTOS_SHEETS && PONTOS_SHEETS.length){
+      p=PONTOS_SHEETS.find(function(x){ return x.colaboradorId===col.id && x.data===data; })||null;
+    }
     const dt=new Date(data+'T12:00:00');
     const saldo=calcSaldoG(p,col);
     const trab=calcHorasG(p,col);
