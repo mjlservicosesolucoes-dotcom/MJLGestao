@@ -1807,7 +1807,8 @@ function renderTarefasPorDia(){
 }
 
 function renderTarefaItem(dia, txt, idx){
-  return '<div class="tarefa-item" data-txt="'+txt.replace(/"/g,"&quot;")+'"><span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span><span class="ti-txt">'+txt+'</span><button class="ti-del" onclick="removerTarefa('+dia+',this)">×</button></div>';
+  var txtSafe = txt.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return '<div class="tarefa-item" data-txt="'+txtSafe+'"><span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span><span class="ti-txt">'+txt+'</span><button class="ti-del" onclick="removerTarefa('+dia+',this)">×</button></div>';
 }
 
 function adicionarTarefa(dia){
