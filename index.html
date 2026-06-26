@@ -2108,29 +2108,7 @@ checkOnline();
 renderDash();
 atualizarBadges();
 
-// Demo data
-if(!DB.clientes.length){
-  DB.clientes=[
-    {id:'c1',nome:'Condomínio Barra Mar',end:'Av. Lúcio Costa, 500 - Barra da Tijuca',resp:'Carlos Andrade',tel:'(21) 3333-0001',obs:''},
-    {id:'c2',nome:'Escritório Centro RJ',end:'Av. Rio Branco, 156 - Centro',resp:'Ana Souza',tel:'(21) 3333-0002',obs:''},
-    {id:'c3',nome:'Shopping West Rio',end:'Av. das Américas, 900 - Recreio',resp:'Paulo Lima',tel:'(21) 3333-0003',obs:''}
-  ];
-  DB.colaboradores=[
-    {id:'e1',nome:'Ana Beatriz Costa',cpf:'00000000001',funcao:'ASG',status:'ativo',tel:'(21) 99001-0001',clienteId:'c1',obs:''},
-    {id:'e2',nome:'Carlos Eduardo Lima',cpf:'00000000002',funcao:'Porteiro',status:'ativo',tel:'(21) 99001-0002',clienteId:'c2',obs:''},
-    {id:'e3',nome:'Fernanda Rocha',cpf:'00000000003',funcao:'Zelador',status:'ativo',tel:'(21) 99001-0003',clienteId:'c3',obs:''},
-    {id:'e4',nome:'João Paulo Souza',cpf:'00000000004',funcao:'ASG',status:'ferias',tel:'(21) 99001-0004',clienteId:'c1',obs:''},
-    {id:'e5',nome:'Maria das Graças',cpf:'00000000005',funcao:'Vigia',status:'ativo',tel:'(21) 99001-0005',clienteId:'c2',obs:''}
-  ];
-  DB.informativos=[
-    {id:'i1',titulo:'NR-6 — Uso obrigatório de EPIs',tipo:'NR',resumo:'Todos os colaboradores devem usar os EPIs fornecidos durante a jornada.',conteudo:'Conforme a Norma Regulamentadora NR-6, é obrigatório o uso de Equipamentos de Proteção Individual durante toda a jornada de trabalho. O não cumprimento pode resultar em advertência. Os EPIs fornecidos são: luvas, máscara, sapatos fechados e colete.',destino:'Todos os colaboradores',exigeAssinatura:true,data:new Date().toISOString().slice(0,10),timestamp:Date.now()},
-    {id:'i2',titulo:'Campanha de Vacinação — Gripe 2025',tipo:'Vacina',resumo:'Orientações sobre a campanha de vacinação contra gripe.',conteudo:'A MJL Serviços orienta todos os colaboradores a se vacinarem contra a gripe na unidade de saúde mais próxima. A vacinação é gratuita pelo SUS. Traga o comprovante para registro.',destino:'Todos os colaboradores',exigeAssinatura:false,data:new Date().toISOString().slice(0,10),timestamp:Date.now()}
-  ];
-  DB.ouvidoria=[
-    {id:'o1',tipo:'sugestao',mensagem:'Seria ótimo ter mais materiais de limpeza disponíveis no almoxarifado.',anonimo:false,colaboradorNome:'Ana Beatriz Costa',colaboradorId:'e1',data:new Date().toISOString().slice(0,10),timestamp:Date.now(),lido:false}
-  ];
-  salvarDB(); renderDash(); atualizarBadges();
-}
+// Sem dados de demonstração — dados reais vêm do Sheets via sincronização
 </script>
 
 <!-- ÁREA DE IMPRESSÃO -->
