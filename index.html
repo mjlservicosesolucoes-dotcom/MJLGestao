@@ -649,6 +649,94 @@ tr:hover td{background:var(--brand-light);}
   <div class="modal-hdr"><h3>📋 Aceites LGPD — Foto de Ponto</h3><button class="modal-cls" onclick="fecharModal('modal-lgpd')">×</button></div>
   <div class="modal-body" id="modal-lgpd-body"></div>
 </div></div>
+
+<!-- MODAL AJUSTE PONTO -->
+<div id="modal-ajuste-ponto" class="modal-overlay" style="display:none;"><div class="modal">
+  <div class="modal-hdr"><h3>✏️ Ajuste de Ponto</h3><button class="modal-cls" onclick="fecharModal('modal-ajuste-ponto')">×</button></div>
+  <div class="modal-body">
+    <div style="background:#fef9e7;border:1px solid #f5d88e;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#d68910;">
+      ⚠️ Este ajuste ficará registrado com seu nome, data e hora. Informe o motivo obrigatoriamente.
+    </div>
+    <input type="hidden" id="aj-col-id"><input type="hidden" id="aj-data">
+    <div class="form-row">
+      <div class="fg"><label>Entrada</label><input type="time" id="aj-entrada"></div>
+      <div class="fg"><label>Saída Almoço</label><input type="time" id="aj-salm"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Volta Almoço</label><input type="time" id="aj-valm"></div>
+      <div class="fg"><label>Saída</label><input type="time" id="aj-saida"></div>
+    </div>
+    <div class="fg"><label>Observação do dia</label>
+      <select id="aj-obs">
+        <option value="">— Dia normal —</option>
+        <option>Folga</option><option>Falta</option><option>Falta Justificada</option>
+        <option>Férias</option><option>Feriado</option><option>Domingo</option>
+      </select>
+    </div>
+    <div class="fg"><label>Motivo do ajuste * (obrigatório)</label>
+      <textarea id="aj-motivo" placeholder="Descreva o motivo do ajuste..." style="min-height:80px;"></textarea>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button class="btn btn-primary" style="flex:1" onclick="confirmarAjustePonto()">✅ Salvar ajuste</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-ajuste-ponto')">Cancelar</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- MODAL NOVO CRONOGRAMA -->
+<div id="modal-crono" class="modal-overlay" style="display:none;"><div class="modal" style="max-width:600px;">
+  <div class="modal-hdr"><h3 id="mc-crono-titulo">Novo Cronograma</h3><button class="modal-cls" onclick="fecharModal('modal-crono')">×</button></div>
+  <div class="modal-body">
+    <input type="hidden" id="crono-id">
+    <div class="form-row">
+      <div class="fg"><label>Cliente / Local *</label><select id="crono-cliente"></select></div>
+      <div class="fg"><label>Função *</label>
+        <select id="crono-funcao">
+          <option>ASG</option><option>Porteiro</option><option>Zelador</option>
+          <option>Vigia</option><option>Recepcionista</option><option>Outro</option>
+        </select>
+      </div>
+    </div>
+    <div class="fg"><label>Nome do cronograma *</label>
+      <input type="text" id="crono-nome" placeholder="Ex: Cronograma Guarani — ASG">
+    </div>
+    <div class="fg"><label>Observações gerais</label>
+      <input type="text" id="crono-obs" placeholder="Ex: Sempre retirar os tapetes da frente das unidades">
+    </div>
+    <div class="fg">
+      <label>Dias com tarefas (clique para ativar)</label>
+      <div class="dias-semana-grid" id="crono-dias-grid">
+        <div class="dia-btn" data-dia="0" onclick="toggleDia(this)"><div class="dia-nome">DOM</div></div>
+        <div class="dia-btn" data-dia="1" onclick="toggleDia(this)"><div class="dia-nome">SEG</div></div>
+        <div class="dia-btn" data-dia="2" onclick="toggleDia(this)"><div class="dia-nome">TER</div></div>
+        <div class="dia-btn" data-dia="3" onclick="toggleDia(this)"><div class="dia-nome">QUA</div></div>
+        <div class="dia-btn" data-dia="4" onclick="toggleDia(this)"><div class="dia-nome">QUI</div></div>
+        <div class="dia-btn" data-dia="5" onclick="toggleDia(this)"><div class="dia-nome">SEX</div></div>
+        <div class="dia-btn" data-dia="6" onclick="toggleDia(this)"><div class="dia-nome">SÁB</div></div>
+      </div>
+    </div>
+    <div id="crono-tarefas-container"></div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-primary" style="flex:1" onclick="salvarCronograma()">📤 Publicar cronograma</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-crono')">Cancelar</button>
+    </div>
+  </div>
+</div></div>
+
+<!-- MODAL VER CRONOGRAMA -->
+<div id="modal-ver-crono" class="modal-overlay" style="display:none;"><div class="modal" style="max-width:620px;">
+  <div class="modal-hdr"><h3 id="mvc-crono-titulo">Cronograma</h3><button class="modal-cls" onclick="fecharModal('modal-ver-crono')">×</button></div>
+  <div class="modal-body">
+    <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+      <button class="btn btn-ghost btn-sm" onclick="imprimirCronograma()">🖨️ Imprimir</button>
+      <button class="btn btn-ghost btn-sm" id="btn-editar-crono">✏️ Editar</button>
+      <button class="btn btn-danger btn-sm" id="btn-excluir-crono">🗑️ Excluir</button>
+    </div>
+    <div id="mvc-crono-body"></div>
+  </div>
+</div></div>
+
+
 <!-- MODAL VER OUVIDORIA -->
 <div id="modal-ver-ouv" class="modal-overlay hidden"><div class="modal">
   <div class="modal-hdr"><h3>💬 Mensagem da Ouvidoria</h3><button class="modal-cls" onclick="fecharModal('modal-ver-ouv')">×</button></div>
@@ -671,6 +759,15 @@ let fotosModalTemp = {};
 
 function salvarDB(){ localStorage.setItem('mjl_gestao_db_v2', JSON.stringify(DB)); }
 function carregarDB(){ const r=localStorage.getItem('mjl_gestao_db_v2'); if(r) DB=JSON.parse(r); }
+
+// Funções de compatibilidade para módulos
+function ler(key, def){
+  try{ var r=localStorage.getItem(key); return r?JSON.parse(r):def; }catch(e){ return def; }
+}
+function salvar(key, val){
+  localStorage.setItem(key, JSON.stringify(val));
+}
+
 function gid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function ini(n){ const p=(n||'?').trim().split(' '); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
 function nCli(id){ const c=DB.clientes.find(x=>x.id===id); return c?c.nome:'—'; }
@@ -1315,7 +1412,12 @@ function exportarCSV(){
 }
 
 // ===== MODAIS =====
-function fecharModal(id){ document.getElementById(id).classList.add('hidden'); }
+function fecharModal(id){ 
+  var el = document.getElementById(id); 
+  if(!el) return;
+  el.classList.add('hidden'); 
+  el.style.display='none';
+}
 document.querySelectorAll('.modal-overlay').forEach(m=>m.addEventListener('click',e=>{ if(e.target===m) m.classList.add('hidden'); }));
 
 
@@ -1654,7 +1756,7 @@ function abrirModalNovoCrono(){
   clis.forEach(function(cl){ if(cl.nome&&!clientes.includes(cl.nome)) clientes.push(cl.nome); });
   var sel = document.getElementById('crono-cliente');
   sel.innerHTML = '<option value="">Selecione o cliente...</option>' + clientes.map(function(c){ return '<option>'+c+'</option>'; }).join('');
-  document.getElementById('modal-crono').classList.remove('hidden');
+  var mc=document.getElementById('modal-crono'); mc.classList.remove('hidden'); mc.style.display='flex';
 }
 
 function toggleDia(btn){
@@ -1806,13 +1908,14 @@ function renderListaCronogramas(filtroFuncao){
     var diasStr = (c.dias||[]).map(function(d){ return DIAS_CURTOS[d]; }).join(', ');
     var totalTarefas = 0;
     if(c.tarefasPorDia) Object.values(c.tarefasPorDia).forEach(function(t){ totalTarefas+=t.length; });
+    var cid = c.id;
     return '<div class="crono-card">' +
       '<div class="crono-card-hdr">' +
         '<div><div style="font-size:15px;font-weight:700;">'+c.nome+'</div>' +
         '<div class="sub">'+c.cliente+' · '+c.funcao+' · '+diasStr+'</div></div>' +
         '<div style="display:flex;gap:6px;">' +
-          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="verCronograma(''+c.id+'')">Ver</button>' +
-          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="editarCronograma(''+c.id+'')">✏️</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="verCronograma(this.dataset.id)" data-id="'+cid+'">Ver</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="editarCronograma(this.dataset.id)" data-id="'+cid+'">✏️</button>' +
         '</div>' +
       '</div>' +
       '<div class="crono-card-body">' +
@@ -1876,7 +1979,7 @@ function verCronograma(id){
   html += '<div class="crono-rodape">MJL Serviços e Soluções | CNPJ 46.636.732/0001-73 | (21) 96838-1313 | contato@mjlservicosesolucoes.com.br | Qualidade e Excelência em Serviços</div>';
   html += '</div>';
   document.getElementById('mvc-crono-body').innerHTML = html;
-  document.getElementById('modal-ver-crono').classList.remove('hidden');
+  var mvc=document.getElementById('modal-ver-crono'); mvc.classList.remove('hidden'); mvc.style.display='flex';
 }
 
 function imprimirCronograma(){
@@ -1923,7 +2026,7 @@ function editarCronograma(id){
     });
   }
   document.getElementById('modal-ver-crono').classList.add('hidden');
-  document.getElementById('modal-crono').classList.remove('hidden');
+  var mc=document.getElementById('modal-crono'); mc.classList.remove('hidden'); mc.style.display='flex';
 }
 
 function excluirCronograma(id){
