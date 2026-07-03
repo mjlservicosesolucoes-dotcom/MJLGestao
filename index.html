@@ -521,10 +521,24 @@ tr:hover td{background:var(--brand-light);}
     </div>
     <div class="form-row">
       <div class="fg"><label>Telefone</label><input type="tel" id="mc-tel" placeholder="(21) 99999-0000"></div>
-      <div class="fg"><label>Cliente / Local</label><select id="mc-cli-sel"></select></div>
+      <div class="fg"><label>Colaborador volante?</label>
+        <select id="mc-volante" onchange="toggleVolante()"><option value="nao">Não — posto fixo</option><option value="sim">Sim — vários postos</option></select>
+      </div>
     </div>
-    <div class="form-row">
-      <div class="fg"><label>Escala</label>
+    <!-- POSTO FIXO: um único cliente -->
+    <div id="mc-fixo-box" class="fg">
+      <label>Cliente / Local</label>
+      <select id="mc-cli-sel"></select>
+    </div>
+    <!-- VOLANTE: múltiplos clientes -->
+    <div id="mc-volante-box" style="display:none;background:var(--bg);border-radius:var(--r-sm);padding:10px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <label style="font-size:11px;font-weight:700;color:var(--text2);">CLIENTES / LOCAIS (adicione todos onde ele trabalha)</label>
+        <button class="btn btn-ghost btn-sm" onclick="addClienteVolante()">+ Cliente</button>
+      </div>
+      <div id="mc-volante-lista"></div>
+      <div style="font-size:11px;color:var(--text3);margin-top:6px;">💡 Adicione os locais onde esse colaborador volante pode ser alocado. O cliente principal fica sendo o primeiro da lista.</div>
+    </div>
         <select id="mc-escala" onchange="if(this.value==='12x36'){document.getElementById('mc-carga').value='12:00';}else{document.getElementById('mc-carga').value='07:20';}">
           <option value="6x1">6x1 — 8h diárias</option>
           <option value="12x36">12x36 — 12h plantão</option>
@@ -544,9 +558,7 @@ tr:hover td{background:var(--brand-light);}
     </div>
     <div class="form-row">
       <div class="fg"><label>Matrícula</label><input type="text" id="mc-mat"></div>
-      <div class="fg"><label>Colaborador volante?</label>
-        <select id="mc-volante"><option value="nao">Não — posto fixo</option><option value="sim">Sim — vários postos</option></select>
-      </div>
+      <div class="fg"></div>
     </div>
     <div class="fg"><label>Observações</label><textarea id="mc-obs"></textarea></div>
     <p style="font-size:11px;color:var(--text3);margin-bottom:12px;">O colaborador cria a própria senha no primeiro acesso usando o CPF.</p>
@@ -879,8 +891,43 @@ function sincronizar(){
 }
 
 // ===== COLABORADORES =====
+let _clientesVolante = [];
+
+function toggleVolante(){
+  const v = document.getElementById('mc-volante').value === 'sim';
+  document.getElementById('mc-fixo-box').style.display = v ? 'none' : '';
+  document.getElementById('mc-volante-box').style.display = v ? 'block' : 'none';
+  if(v && !_clientesVolante.length) _clientesVolante = [];
+  renderClientesVolante();
+}
+
+function renderClientesVolante(){
+  const el = document.getElementById('mc-volante-lista');
+  if(!el) return;
+  if(!_clientesVolante.length){
+    el.innerHTML = '<p style="color:var(--text3);font-size:12px;margin:4px 0 6px;">Nenhum cliente adicionado ainda.</p>';
+    return;
+  }
+  el.innerHTML = _clientesVolante.map((cliId, i) => {
+    const opts = DB.clientes.map(c => `<option value="${c.id}"${c.id===cliId?' selected':''}>${c.nome}</option>`).join('');
+    return `<div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+      <select style="flex:1;padding:7px 10px;border-radius:var(--r-sm);border:1.5px solid var(--border);font-size:12px;" onchange="_clientesVolante[${i}]=this.value">
+        <option value="">-- Selecione --</option>${opts}
+      </select>
+      ${i===0?'<span style="font-size:10px;color:var(--text3);white-space:nowrap;">principal</span>':''}
+      <button class="btn btn-ghost btn-sm" style="color:var(--vermelho)" onclick="_clientesVolante.splice(${i},1);renderClientesVolante()">×</button>
+    </div>`;
+  }).join('');
+}
+
+function addClienteVolante(){
+  _clientesVolante.push('');
+  renderClientesVolante();
+}
+
 function abrirModalCol(id){
   popularSelectCli('mc-cli-sel','');
+  _clientesVolante = [];
   if(id){
     const c=DB.colaboradores.find(x=>x.id===id);
     document.getElementById('mc-titulo').textContent='Editar Colaborador';
@@ -891,13 +938,29 @@ function abrirModalCol(id){
     document.getElementById('mc-status').value=c.status;
     document.getElementById('mc-tel').value=c.tel||'';
     document.getElementById('mc-obs').value=c.obs||'';
-    popularSelectCli('mc-cli-sel',c.clienteId||'');
+    document.getElementById('mc-escala').value=c.escala||'6x1';
+    document.getElementById('mc-turno').value=c.turno||'diurno';
+    if(document.getElementById('mc-entrada')) document.getElementById('mc-entrada').value=c.horario_entrada||'';
+    if(document.getElementById('mc-saida')) document.getElementById('mc-saida').value=c.horario_saida||'';
+    if(document.getElementById('mc-carga')) document.getElementById('mc-carga').value=c.carga_diaria||'07:20';
+    if(document.getElementById('mc-saldo-ant')) document.getElementById('mc-saldo-ant').value=c.saldo_anterior||'00:00';
+    if(document.getElementById('mc-mat')) document.getElementById('mc-mat').value=c.matricula||'';
+    const volante = c.volante || (c.clientesIds && c.clientesIds.length > 1);
+    document.getElementById('mc-volante').value = volante ? 'sim' : 'nao';
+    if(volante){
+      // Compatibilidade: colaboradores antigos com clientesIds array
+      _clientesVolante = c.clientesIds && c.clientesIds.length ? [...c.clientesIds] : (c.clienteId ? [c.clienteId] : []);
+    } else {
+      popularSelectCli('mc-cli-sel', c.clienteId||'');
+    }
   } else {
     document.getElementById('mc-titulo').textContent='Novo Colaborador';
     ['mc-id','mc-nome','mc-cpf','mc-tel','mc-obs'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('mc-func').value='ASG';
     document.getElementById('mc-status').value='ativo';
+    document.getElementById('mc-volante').value='nao';
   }
+  toggleVolante();
   document.getElementById('modal-col').classList.remove('hidden');
 }
 
@@ -906,12 +969,24 @@ function salvarCol(){
   const cpf=document.getElementById('mc-cpf').value.trim();
   if(!nome||!cpf){ alert('Nome e CPF são obrigatórios.'); return; }
   const id=document.getElementById('mc-id').value;
-  const nCli2 = document.getElementById('mc-cli-sel');
+  const volante = document.getElementById('mc-volante').value === 'sim';
+  let clienteId = '', clientesIds = [], posto = '';
+  if(volante){
+    clientesIds = _clientesVolante.filter(Boolean);
+    if(!clientesIds.length){ alert('Adicione pelo menos um cliente para o colaborador volante.'); return; }
+    clienteId = clientesIds[0]; // principal = primeiro da lista
+    posto = clientesIds.map(cid => DB.clientes.find(c=>c.id===cid)?.nome||'').filter(Boolean).join(' / ');
+  } else {
+    const nCli2 = document.getElementById('mc-cli-sel');
+    clienteId = nCli2.value;
+    clientesIds = clienteId ? [clienteId] : [];
+    posto = nCli2?.options[nCli2.selectedIndex]?.text||'';
+  }
   const obj={id:id||gid(),nome,cpf,
     funcao:document.getElementById('mc-func').value,
     status:document.getElementById('mc-status').value,
     tel:document.getElementById('mc-tel').value.trim(),
-    clienteId:document.getElementById('mc-cli-sel').value,
+    clienteId, clientesIds, posto,
     obs:document.getElementById('mc-obs').value.trim(),
     escala:document.getElementById('mc-escala')?.value||'6x1',
     turno:document.getElementById('mc-turno')?.value||'diurno',
@@ -920,8 +995,7 @@ function salvarCol(){
     carga_diaria:document.getElementById('mc-carga')?.value||'07:20',
     saldo_anterior:document.getElementById('mc-saldo-ant')?.value||'00:00',
     matricula:document.getElementById('mc-mat')?.value?.trim()||'',
-    volante:document.getElementById('mc-volante')?.value==='sim',
-    posto:nCli2?.options[nCli2.selectedIndex]?.text||''
+    volante
   };
   // Salvar na chave usada pelo módulo de ponto
   const colsAll=ler('mjl_gestao_cols',[]).filter(x=>x.id!==obj.id);
@@ -946,7 +1020,10 @@ function renderCol(filtro){
   tb.innerHTML=l.map(c=>`<tr>
     <td><div style="display:flex;align-items:center;gap:8px"><div class="av">${ini(c.nome)}</div><strong>${c.nome}</strong></div></td>
     <td>${c.funcao}</td>
-    <td><span class="badge b-cli">${nCli(c.clienteId)}</span></td>
+    <td>${c.volante && c.clientesIds && c.clientesIds.length > 1
+      ? `<span class="badge b-warn" title="${c.clientesIds.map(cid=>DB.clientes.find(x=>x.id===cid)?.nome||'').filter(Boolean).join(', ')}">🔀 ${c.clientesIds.length} locais</span>`
+      : `<span class="badge b-cli">${nCli(c.clienteId)}</span>`
+    }</td>
     <td><span class="badge ${bColMap[c.status]||''}">${tColMap[c.status]||c.status}</span></td>
     <td style="font-family:monospace">${c.cpf||'—'}</td>
     <td style="white-space:nowrap">
