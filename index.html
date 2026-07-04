@@ -838,17 +838,34 @@ function acaoTopbar(){
 function sincronizar(){
   const url=localStorage.getItem('mjl_gestao_script_url');
   if(!url||!navigator.onLine) return;
-  // Publica colaboradores p/ app campo
-  const payload={acao:'setColaboradores',colaboradores:DB.colaboradores.map(c=>({
-    id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status
-  }))};
-  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
-  // Publica informativos
-  const pi={acao:'setInformativos',informativos:DB.informativos};
-  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pi)}).catch(()=>{});
-  // Publica chamados
-  const pc={acao:'setChamados',chamados:DB.chamados};
-  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pc)}).catch(()=>{});
+  // PROTEÇÃO: nunca publica lista VAZIA — um dispositivo novo/limpo apagaria
+  // do Sheets todos os colaboradores (e os logins do App Campo), informativos
+  // e chamados. Só envia quando há dados locais.
+  if(DB.colaboradores.length){
+    const payload={acao:'setColaboradores',colaboradores:DB.colaboradores.map(c=>({
+      id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status
+    }))};
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
+  }
+  if(DB.informativos.length){
+    const pi={acao:'setInformativos',informativos:DB.informativos};
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pi)}).catch(()=>{});
+  }
+  if(DB.chamados.length){
+    const pc={acao:'setChamados',chamados:DB.chamados};
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pc)}).catch(()=>{});
+  }
+  // DISPOSITIVO NOVO: se não há colaboradores locais, importa do Sheets em vez
+  // de sobrescrever — assim qualquer aparelho fica com os mesmos dados.
+  if(!DB.colaboradores.length){
+    fetch(url+'?acao=getColaboradores',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
+      if(d?.colaboradores&&d.colaboradores.length&&!DB.colaboradores.length){
+        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo'});});
+        salvarDB();renderDash();
+        alert('📥 '+d.colaboradores.length+' colaboradores importados do Sheets para este dispositivo. Confira o cliente/escala de cada um.');
+      }
+    }).catch(()=>{});
+  }
   // Busca registros e dados do campo
   fetch(url+'?acao=getRegistros',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.registros){ data.registros.forEach(r=>{ if(!DB.registros.find(x=>x.id===r.id)) DB.registros.push(r); }); salvarDB(); renderDash(); }
@@ -2212,6 +2229,11 @@ renderDash();
 atualizarBadges();
 
 // Sem dados de demonstração — dados reais vêm do Sheets via sincronização
+
+// ===== OFFLINE: service worker guarda o app no aparelho =====
+if('serviceWorker' in navigator && location.protocol==='https:'){
+  navigator.serviceWorker.register('./sw.js').catch(function(){});
+}
 </script>
 
 <!-- ÁREA DE IMPRESSÃO -->
