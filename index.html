@@ -1962,6 +1962,10 @@ function abrirModalNovoCrono(){
   var clientes = [...new Set(cols.map(function(c){ return c.posto||c.cliente||''; }).filter(Boolean))];
   var clis = ler('mjl_gestao_clientes',[]);
   clis.forEach(function(cl){ if(cl.nome&&!clientes.includes(cl.nome)) clientes.push(cl.nome); });
+  // v7: inclui os clientes cadastrados na tela Clientes/Locais (DB.clientes)
+  (DB.clientes||[]).forEach(function(cl){ if(cl&&cl.nome&&!clientes.includes(cl.nome)) clientes.push(cl.nome); });
+  (DB.colaboradores||[]).forEach(function(c){ var n=nCli(c.clienteId); if(n&&n!=='—'&&!clientes.includes(n)) clientes.push(n); });
+  clientes.sort(function(a,b){return a.localeCompare(b);});
   var sel = document.getElementById('crono-cliente');
   sel.innerHTML = '<option value="">Selecione o cliente...</option>' + clientes.map(function(c){ return '<option>'+c+'</option>'; }).join('');
   var mc=document.getElementById('modal-crono'); mc.classList.remove('hidden'); mc.style.display='flex';
@@ -2220,6 +2224,10 @@ function editarCronograma(id){
   var clientes = [...new Set(cols.map(function(col){ return col.posto||col.cliente||''; }).filter(Boolean))];
   var clis = ler('mjl_gestao_clientes',[]);
   clis.forEach(function(cl){ if(cl.nome&&!clientes.includes(cl.nome)) clientes.push(cl.nome); });
+  // v7: inclui os clientes cadastrados na tela Clientes/Locais (DB.clientes)
+  (DB.clientes||[]).forEach(function(cl){ if(cl&&cl.nome&&!clientes.includes(cl.nome)) clientes.push(cl.nome); });
+  (DB.colaboradores||[]).forEach(function(c){ var n=nCli(c.clienteId); if(n&&n!=='—'&&!clientes.includes(n)) clientes.push(n); });
+  clientes.sort(function(a,b){return a.localeCompare(b);});
   var sel = document.getElementById('crono-cliente');
   sel.innerHTML = '<option value="">Selecione...</option>' + clientes.map(function(cl){ return '<option'+(cl===c.cliente?' selected':'')+'>'+cl+'</option>'; }).join('');
   sel.value = c.cliente;
