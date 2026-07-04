@@ -1614,6 +1614,19 @@ function lerPontoG(colId,data){
       return p.colaboradorId === colId && p.data === data;
     });
     if(encontrado) return encontrado;
+    // v9: PROTEÇÃO — se o colaborador foi recadastrado (ID novo), o ponto
+    // antigo continua na planilha com o ID anterior. Vincula pelo NOME
+    // para o histórico nunca "sumir" da tela.
+    var colsG = ler('mjl_gestao_cols',[]);
+    var colG = colsG.find(function(c){ return c.id === colId; });
+    if(colG && colG.nome){
+      var nomeAlvo = String(colG.nome).trim().toLowerCase();
+      var porNome = PONTOS_SHEETS.find(function(p){
+        return p.data === data && p.colaboradorNome &&
+          String(p.colaboradorNome).trim().toLowerCase() === nomeAlvo;
+      });
+      if(porNome) return porNome;
+    }
   }
   return null;
 }
