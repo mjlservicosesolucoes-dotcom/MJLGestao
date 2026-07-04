@@ -228,6 +228,7 @@ tr:hover td{background:var(--brand-light);}
     <a class="nav-link" data-page="chamados"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 8 12 12 14 14"/></svg>Chamados<span class="sb-nb hidden" id="sb-nb-ch">0</span></a>
     <a class="nav-link" data-page="informativos"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>Informativos</a>
     <a class="nav-link" data-page="ouvidoria"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>Ouvidoria<span class="sb-nb hidden" id="sb-nb-ouv">0</span></a>
+    <a class="nav-link" data-page="fotos"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>Fotos</a>
     <a class="nav-link" data-page="ponto-registros">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>Registros de Ponto
     </a>
@@ -458,6 +459,22 @@ tr:hover td{background:var(--brand-light);}
     </div>
 
     <!-- CONFIGURAÇÕES -->
+    <div class="page" id="page-fotos">
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Tipo</label>
+            <select id="ft-tipo" onchange="renderFotos()" style="padding:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
+              <option value="">Todas</option><option value="Ponto">📍 Ponto</option><option value="Chamados">🔧 Chamados</option><option value="Cronograma">📋 Cronograma</option>
+            </select></div>
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Mês</label>
+            <input type="month" id="ft-mes" onchange="renderFotos()" style="padding:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></div>
+          <div style="flex:1;min-width:140px;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Colaborador / Local</label>
+            <input type="text" id="ft-busca" oninput="renderFotos()" placeholder="Buscar..." style="width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></div>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;">💡 As fotos ficam guardadas no Google Drive, na pasta <strong>MJL Fotos</strong>, separadas por tipo e mês. Toque na miniatura para abrir em tamanho real. Sincronize para carregar as mais recentes.</p>
+      </div>
+      <div id="fotos-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;"></div>
+    </div>
     <div class="page" id="page-configuracoes">
       <div class="cfg-warn" id="cfg-status-warn">
         <strong>⚙️ Conexão com Google Sheets</strong>
@@ -766,7 +783,7 @@ function imprimirRelatorio(titulo) {
 }
 
 // ===== DB =====
-let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[]};
+let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[]};
 let fotosModalTemp = {};
 
 function salvarDB(){ localStorage.setItem('mjl_gestao_db_v2', JSON.stringify(DB)); }
@@ -802,7 +819,7 @@ window.addEventListener('online',checkOnline);
 window.addEventListener('offline',checkOnline);
 
 // ===== NAV =====
-const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',configuracoes:'Configurações'};
+const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',configuracoes:'Configurações'};
 const topActions={dashboard:'+ Colaborador',colaboradores:'+ Colaborador',clientes:'+ Cliente',chamados:'+ Chamado',informativos:'+ Informativo'};
 
 function navegar(p){
@@ -822,6 +839,7 @@ function navegar(p){
   if(p==='chamados')renderChamados('todos');
   if(p==='informativos')renderInformativos('todos');
   if(p==='ouvidoria')renderOuvidoria('todos');
+  if(p==='fotos')renderFotos();
   if(p==='configuracoes')renderConfig();
 }
 document.querySelectorAll('[data-page]').forEach(a=>a.addEventListener('click',()=>navegar(a.dataset.page)));
@@ -835,6 +853,34 @@ function acaoTopbar(){
 }
 
 // ===== SINCRONIZAR =====
+function fotosPontoIcones(colId,data){
+  const fts=fotosDe(colId+'_'+data);
+  if(!fts.length) return '';
+  return fts.map(f=>`<img src="${thumbFoto(f.id,100)}" loading="lazy" title="${f.etapa} ${f.hora||''}" onclick="event.stopPropagation();abrirFoto('${f.id}')" style="width:26px;height:26px;object-fit:cover;border-radius:6px;margin-right:3px;vertical-align:middle;cursor:pointer;border:1.5px solid var(--border);">`).join('');
+}
+function thumbFoto(id,sz){return 'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(sz||400);}
+function fotosDe(refId,etapa){return (DB.fotos||[]).filter(f=>f.refId===refId&&(!etapa||f.etapa===etapa)).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));}
+function abrirFoto(id){window.open(thumbFoto(id,1600),'_blank');}
+function renderFotos(){
+  const grid=document.getElementById('fotos-grid'); if(!grid) return;
+  const tipo=document.getElementById('ft-tipo').value;
+  const mes=document.getElementById('ft-mes').value;
+  const busca=(document.getElementById('ft-busca').value||'').toLowerCase();
+  let l=[...(DB.fotos||[])].sort((a,b)=>(b.timestamp||0)-(a.timestamp||0));
+  if(tipo) l=l.filter(f=>f.tipo===tipo);
+  if(mes) l=l.filter(f=>(f.mes||String(f.data||'').slice(0,7))===mes);
+  if(busca) l=l.filter(f=>((f.colaboradorNome||'')+' '+(f.cliente||'')).toLowerCase().includes(busca));
+  if(!l.length){grid.innerHTML='<p style="color:var(--text3);grid-column:1/-1;">Nenhuma foto encontrada. Clique em ☁️ Sincronizar (Configurações) para buscar as mais recentes.</p>';return;}
+  const emoji={Ponto:'📍',Chamados:'🔧',Cronograma:'📋'};
+  grid.innerHTML=l.slice(0,200).map(f=>`
+    <div style="background:var(--card);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;cursor:pointer;" onclick="abrirFoto('${f.id}')">
+      <img src="${thumbFoto(f.id,300)}" loading="lazy" style="width:100%;height:110px;object-fit:cover;display:block;background:var(--bg);">
+      <div style="padding:6px 8px;">
+        <div style="font-size:11px;font-weight:700;">${emoji[f.tipo]||'📷'} ${f.colaboradorNome||f.cliente||'—'}</div>
+        <div style="font-size:10px;color:var(--text3);">${f.data||''} ${f.hora||''} · ${f.etapa||''}</div>
+      </div>
+    </div>`).join('')+(l.length>200?'<p style="color:var(--text3);grid-column:1/-1;">Mostrando as 200 mais recentes — use os filtros para refinar.</p>':'');
+}
 function sincronizar(){
   const url=localStorage.getItem('mjl_gestao_script_url');
   if(!url||!navigator.onLine) return;
@@ -886,6 +932,15 @@ function sincronizar(){
       salvarDB(); 
     }
   }).catch(()=>{});
+  // Busca fotos (metadados — as imagens ficam no Drive)
+  fetch(url+'?acao=getFotos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(data){
+    if(data&&data.fotos){
+      if(!DB.fotos)DB.fotos=[];
+      data.fotos.forEach(function(f){ if(f&&f.id&&!DB.fotos.find(x=>x.id===f.id)) DB.fotos.push(f); });
+      salvarDB();
+      if(document.getElementById('page-fotos')&&document.getElementById('page-fotos').classList.contains('active')) renderFotos();
+    }
+  }).catch(function(){});
   // Busca pontos do campo
   fetch(url+'?acao=getPontos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(data){
     if(data && data.pontos && data.pontos.length){
@@ -1253,8 +1308,12 @@ function verChamado(id){
       ${c.dataFechamento?`<div style="background:var(--green-light);border-radius:var(--r-sm);padding:9px"><div style="font-size:10px;color:var(--green)">Data conclusão</div><div style="font-weight:700;font-size:13px;color:var(--green)">${c.dataFechamento}</div></div>`:''}
     </div>
     <p style="font-size:13px;line-height:1.5;margin-bottom:12px">${c.desc||''}</p>
-    ${c.fotosAntes?.length?`<div style="margin-bottom:12px"><div class="card-title">📸 Fotos do problema (${c.fotosAntes.length})</div><div class="pg">${c.fotosAntes.map(f=>`<div class="pt"><img src="${f}"></div>`).join('')}</div></div>`:''}
-    ${c.fotosdepois?.length?`<div style="margin-bottom:12px"><div class="card-title">✅ Fotos após conclusão (${c.fotosdepois.length})</div><div class="pg">${c.fotosdepois.map(f=>`<div class="pt"><img src="${f}"></div>`).join('')}</div></div>`:''}
+    ${(()=>{const dA=fotosDe(c.id,'antes');const loc=Array.isArray(c.fotosAntes)?c.fotosAntes:[];const tot=dA.length+loc.length;
+      if(!tot)return '';
+      return `<div style="margin-bottom:12px"><div class="card-title">📸 Fotos do problema (${tot})</div><div class="pg">${loc.map(f=>`<div class="pt"><img src="${f}"></div>`).join('')}${dA.map(f=>`<div class="pt" style="cursor:pointer" onclick="abrirFoto('${f.id}')"><img src="${thumbFoto(f.id,300)}" loading="lazy"></div>`).join('')}</div></div>`;})()}
+    ${(()=>{const dD=fotosDe(c.id,'depois');const loc=Array.isArray(c.fotosdepois)?c.fotosdepois:[];const tot=dD.length+loc.length;
+      if(!tot)return '';
+      return `<div style="margin-bottom:12px"><div class="card-title">✅ Fotos após conclusão (${tot})</div><div class="pg">${loc.map(f=>`<div class="pt"><img src="${f}"></div>`).join('')}${dD.map(f=>`<div class="pt" style="cursor:pointer" onclick="abrirFoto('${f.id}')"><img src="${thumbFoto(f.id,300)}" loading="lazy"></div>`).join('')}</div></div>`;})()}
     ${c.obs?`<div style="background:var(--green-light);border-radius:var(--r-sm);padding:10px;font-size:13px;margin-bottom:12px"><strong>Resolução:</strong> ${c.obs}</div>`:''}
     ${c.status!=='fechado'?`<div style="display:flex;gap:8px;margin-top:14px">
       ${c.status==='aberto'?`<button class="btn btn-primary btn-sm" onclick="mudarStatusChamado('${c.id}','andamento');fecharModal('modal-ver-chamado')">▶ Em andamento</button>`:''}
@@ -1631,7 +1690,7 @@ function renderPontoRegs(){
         <td>—</td>
         <td><span class="badge ${(p.saldo_dia||0)>=0?'b-ativo':'b-afastado'}">${((p.saldo_dia||0)>=0?'+':'')+mToHH(p.saldo_dia||0)}</span></td>
         <td>${p.obs||'—'}</td>
-        <td></td>
+        <td>${fotosPontoIcones(p.colaboradorId,data)}</td>
       </tr>`);
     });
     tb.innerHTML=linhas.join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:14px">Nenhum registro.</td></tr>';
@@ -1662,7 +1721,7 @@ function renderPontoRegs(){
       <td>${col.escala==='12x36'?'12:00':mToHH(prev)}</td>
       <td><span class="badge ${saldo>=0?'b-ativo':'b-afastado'}">${(saldo>=0?'+':'')+mToHH(saldo)}</span>${feriado?'<span class="badge b-afastado" style="margin-left:4px;">100%</span>':''}${noturno?'<span style="margin-left:4px;">🌙</span>':''}</td>
       <td>${p?.obs||'—'}</td>
-      <td><button class="btn btn-ghost btn-sm" onclick="abrirAjustePonto('${col.id}','${data}')">✏️ Ajustar</button></td>
+      <td>${fotosPontoIcones(col.id,data)}<button class="btn btn-ghost btn-sm" onclick="abrirAjustePonto('${col.id}','${data}')">✏️ Ajustar</button></td>
     </tr>`);
   });
   tb.innerHTML=linhas.join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:14px">Nenhum registro.</td></tr>';
