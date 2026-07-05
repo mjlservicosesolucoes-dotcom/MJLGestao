@@ -1246,10 +1246,11 @@ function renderChamados(f){
       <span class="badge b-info">🧑 ${c.colaboradorNome||'MJL'}</span>
     </div>
     <div class="item-meta">📅 Aberto: ${c.dataAbertura} ${c.dataFechamento?'· Fechado: '+c.dataFechamento:''}</div>
-    ${c.status!=='fechado'?`<div style="display:flex;gap:8px;margin-top:10px">
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
       ${c.status==='aberto'?`<button class="btn btn-primary btn-sm" onclick="event.stopPropagation();mudarStatusChamado('${c.id}','andamento')">▶ Em andamento</button>`:''}
-      <button class="btn btn-green btn-sm" onclick="event.stopPropagation();abrirFecharChamado('${c.id}')">✅ Concluir</button>
-    </div>`:''}
+      ${c.status!=='fechado'?`<button class="btn btn-green btn-sm" onclick="event.stopPropagation();abrirFecharChamado('${c.id}')">✅ Concluir</button>`:''}
+      <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="event.stopPropagation();excluirChamado('${c.id}')">🗑️ Excluir</button>
+    </div>
   </div>`).join('');
 }
 
@@ -1277,6 +1278,20 @@ function salvarNovoChamado(){
   if(navigator.onLine) sincronizar();
 }
 
+function excluirChamado(id){
+  const ch=DB.chamados.find(x=>x.id===id);
+  if(!ch) return;
+  if(!confirm('Excluir o chamado "'+(ch.tipo||'')+'" definitivamente?\n\nEle some do painel e da planilha (as fotos continuam guardadas no Drive).')) return;
+  DB.chamados=DB.chamados.filter(x=>x.id!==id);
+  salvarDB(); renderChamados(filtChamado); atualizarBadges();
+  // Publica a lista SEM o excluído — envio intencional mesmo se a lista
+  // ficar vazia (é o único jeito de remover da planilha)
+  const url=localStorage.getItem('mjl_gestao_script_url');
+  if(url&&navigator.onLine){
+    const pc={acao:'setChamados',chamados:DB.chamados};
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pc)}).catch(()=>{});
+  }
+}
 function mudarStatusChamado(id,status){
   const idx=DB.chamados.findIndex(x=>x.id===id);
   if(idx>=0){ DB.chamados[idx].status=status; DB.chamados[idx].upC=Date.now(); salvarDB(); renderChamados(filtChamado); atualizarBadges(); if(navigator.onLine) sincronizar(); }
