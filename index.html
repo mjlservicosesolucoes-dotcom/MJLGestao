@@ -682,7 +682,7 @@ tr:hover td{background:var(--brand-light);}
 </div></div>
 
 <!-- MODAL AJUSTE PONTO -->
-<div id="modal-ajuste-ponto" class="modal-overlay" style="display:none;"><div class="modal">
+<div id="modal-ajuste-ponto" class="modal-overlay hidden"><div class="modal">
   <div class="modal-hdr"><h3>✏️ Ajuste de Ponto</h3><button class="modal-cls" onclick="fecharModal('modal-ajuste-ponto')">×</button></div>
   <div class="modal-body">
     <div style="background:#fef9e7;border:1px solid #f5d88e;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#d68910;">
@@ -715,7 +715,7 @@ tr:hover td{background:var(--brand-light);}
 </div></div>
 
 <!-- MODAL NOVO CRONOGRAMA -->
-<div id="modal-crono" class="modal-overlay" style="display:none;"><div class="modal" style="max-width:600px;">
+<div id="modal-crono" class="modal-overlay hidden"><div class="modal" style="max-width:600px;">
   <div class="modal-hdr"><h3 id="mc-crono-titulo">Novo Cronograma</h3><button class="modal-cls" onclick="fecharModal('modal-crono')">×</button></div>
   <div class="modal-body">
     <input type="hidden" id="crono-id">
@@ -755,7 +755,7 @@ tr:hover td{background:var(--brand-light);}
 </div></div>
 
 <!-- MODAL VER CRONOGRAMA -->
-<div id="modal-ver-crono" class="modal-overlay" style="display:none;"><div class="modal" style="max-width:620px;">
+<div id="modal-ver-crono" class="modal-overlay hidden"><div class="modal" style="max-width:620px;">
   <div class="modal-hdr"><h3 id="mvc-crono-titulo">Cronograma</h3><button class="modal-cls" onclick="fecharModal('modal-ver-crono')">×</button></div>
   <div class="modal-body">
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
@@ -2356,7 +2356,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v11';
+  b.textContent='MJL Gestão v12';
   document.body.appendChild(b);
 })();
 </script>
