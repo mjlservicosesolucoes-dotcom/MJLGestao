@@ -1846,7 +1846,9 @@ function renderPontoRegs(){
 function _gpsLink(g){return g&&g.lat?`https://maps.google.com/?q=${g.lat},${g.lng}`:'';}
 function _gpsPonto(p){
   if(!p)return '';
-  const e=p.geo_e,s=p.geo_s;
+  // aceita geo_e/geo_s (objeto), ou lat/lng soltos (formato antigo)
+  const e=p.geo_e||(p.lat_e?{lat:p.lat_e,lng:p.lng_e,acc:p.acc_e}:(p.geo&&p.geo.lat?p.geo:null));
+  const s=p.geo_s||(p.lat_s?{lat:p.lat_s,lng:p.lng_s,acc:p.acc_s}:null);
   let out='';
   if(e&&e.lat)out+=`<a href="${_gpsLink(e)}" target="_blank" title="Entrada ±${e.acc||'?'}m" style="color:var(--brand);font-size:11px;font-weight:700;display:inline-flex;gap:2px;margin-top:3px;">📍 entrada</a>`;
   if(s&&s.lat)out+=`${e&&e.lat?' · ':''}<a href="${_gpsLink(s)}" target="_blank" title="Saída ±${s.acc||'?'}m" style="color:var(--brand);font-size:11px;font-weight:700;">📍 saída</a>`;
@@ -2453,7 +2455,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v14';
+  b.textContent='MJL Gestão v15';
   document.body.appendChild(b);
 })();
 </script>
