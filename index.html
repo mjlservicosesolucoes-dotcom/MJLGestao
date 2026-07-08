@@ -241,6 +241,7 @@ tr:hover td{background:var(--brand-light);}
     <a class="nav-link" data-page="cronogramas">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="16" y1="14" x2="16" y2="14"/></svg>Cronogramas
     </a>
+    <a class="nav-link" data-page="tarefasfeitas"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tarefas Realizadas</a>
     <a class="nav-link" data-page="configuracoes"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
   </nav>
   <div class="sb-footer">
@@ -459,6 +460,19 @@ tr:hover td{background:var(--brand-light);}
     </div>
 
     <!-- CONFIGURAÇÕES -->
+    <div class="page" id="page-tarefasfeitas">
+      <div class="card" style="margin-bottom:12px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Data</label>
+            <input type="date" id="tf-data" onchange="renderTarefasFeitas()" style="padding:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></div>
+          <div style="flex:1;min-width:150px;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Local / Colaborador</label>
+            <input type="text" id="tf-busca" oninput="renderTarefasFeitas()" placeholder="Buscar..." style="width:100%;padding:8px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></div>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('tf-data').value='';document.getElementById('tf-busca').value='';renderTarefasFeitas()">Limpar filtros</button>
+        </div>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;">✅ Quem concluiu cada tarefa do cronograma, onde e quando. As fotos de tarefa aparecem junto quando o colaborador registrou. Clique em ☁️ Sincronizar para trazer as mais recentes.</p>
+      </div>
+      <div id="tf-lista"></div>
+    </div>
     <div class="page" id="page-fotos">
       <div class="card" style="margin-bottom:12px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
@@ -734,6 +748,16 @@ tr:hover td{background:var(--brand-light);}
     <div class="fg"><label>Observações gerais</label>
       <input type="text" id="crono-obs" placeholder="Ex: Sempre retirar os tapetes da frente das unidades">
     </div>
+    <div class="fg"><label>Visível para</label>
+      <select id="crono-visib" onchange="toggleVisibColabs()">
+        <option value="funcao">Todos os colaboradores da função no local</option>
+        <option value="especifico">Colaboradores específicos (escolher abaixo)</option>
+      </select>
+    </div>
+    <div class="fg" id="crono-colabs-box" style="display:none;background:var(--bg);border-radius:8px;padding:10px;">
+      <label style="font-size:11px;color:var(--text3);">Marque quem verá este cronograma:</label>
+      <div id="crono-colabs-lista" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;max-height:160px;overflow-y:auto;"></div>
+    </div>
     <div class="fg">
       <label>Dias com tarefas (clique para ativar)</label>
       <div class="dias-semana-grid" id="crono-dias-grid">
@@ -785,7 +809,7 @@ function imprimirRelatorio(titulo) {
 }
 
 // ===== DB =====
-let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[]};
+let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[],cronoFeitos:[]};
 let fotosModalTemp = {};
 
 function salvarDB(){ localStorage.setItem('mjl_gestao_db_v2', JSON.stringify(DB)); }
@@ -821,7 +845,7 @@ window.addEventListener('online',checkOnline);
 window.addEventListener('offline',checkOnline);
 
 // ===== NAV =====
-const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',configuracoes:'Configurações'};
+const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',tarefasfeitas:'Tarefas Realizadas',configuracoes:'Configurações'};
 const topActions={dashboard:'+ Colaborador',colaboradores:'+ Colaborador',clientes:'+ Cliente',chamados:'+ Chamado',informativos:'+ Informativo'};
 
 function navegar(p){
@@ -842,6 +866,7 @@ function navegar(p){
   if(p==='informativos')renderInformativos('todos');
   if(p==='ouvidoria')renderOuvidoria('todos');
   if(p==='fotos')renderFotos();
+  if(p==='tarefasfeitas')renderTarefasFeitas();
   if(p==='configuracoes')renderConfig();
 }
 document.querySelectorAll('[data-page]').forEach(a=>a.addEventListener('click',()=>navegar(a.dataset.page)));
@@ -859,6 +884,39 @@ function fotosPontoIcones(colId,data){
   const fts=fotosDe(colId+'_'+data);
   if(!fts.length) return '';
   return fts.map(f=>`<img src="${thumbFoto(f.id,100)}" loading="lazy" title="${f.etapa} ${f.hora||''}" onclick="event.stopPropagation();abrirFoto('${f.id}')" style="width:26px;height:26px;object-fit:cover;border-radius:6px;margin-right:3px;vertical-align:middle;cursor:pointer;border:1.5px solid var(--border);">`).join('');
+}
+function renderTarefasFeitas(){
+  const el=document.getElementById('tf-lista'); if(!el) return;
+  const fData=document.getElementById('tf-data').value;
+  const fBusca=(document.getElementById('tf-busca').value||'').toLowerCase();
+  let l=[...(DB.cronoFeitos||[])];
+  if(fData) l=l.filter(x=>x.data===fData);
+  if(fBusca) l=l.filter(x=>((x.local||'')+' '+(x.colaboradorNome||'')).toLowerCase().includes(fBusca));
+  l.sort((a,b)=>(b.data||'').localeCompare(a.data||'')||(b.hora||'').localeCompare(a.hora||''));
+  if(!l.length){el.innerHTML='<div class="card" style="text-align:center;padding:24px;color:var(--text3);">Nenhuma tarefa registrada'+(fData||fBusca?' com esses filtros':'')+'. Clique em ☁️ Sincronizar (topo) para buscar as mais recentes.</div>';return;}
+  // Agrupa por data → local
+  const grupos={};
+  l.forEach(x=>{const k=(x.data||'')+'|'+(x.local||'—');(grupos[k]=grupos[k]||[]).push(x);});
+  el.innerHTML=Object.entries(grupos).map(([k,itens])=>{
+    const [data,local]=k.split('|');
+    const dt=data?new Date(data+'T12:00').toLocaleDateString('pt-BR'):'';
+    return `<div class="card" style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+        <div style="font-weight:800;">📍 ${local} <span style="color:var(--text3);font-weight:400;font-size:12px;">· ${dt}</span></div>
+        <span class="badge b-ativo">${itens.length} tarefa(s)</span>
+      </div>
+      ${itens.map(x=>{
+        const fotos=fotosDe(x.itemId,'tarefa').concat(fotosDe(x.itemId));
+        return `<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span style="color:var(--green);font-size:16px;">✔️</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:600;">${x.colaboradorNome||'Colaborador'}</div>
+            <div style="font-size:11px;color:var(--text3);">concluiu às ${x.hora||'—'}${x.foto?' · 📷 com foto':''}</div>
+          </div>
+          ${fotos.length?`<img src="${thumbFoto(fotos[0].id,100)}" loading="lazy" onclick="abrirFoto('${fotos[0].id}')" style="width:34px;height:34px;object-fit:cover;border-radius:6px;cursor:pointer;border:1.5px solid var(--border);">`:''}
+        </div>`;}).join('')}
+    </div>`;
+  }).join('');
 }
 function thumbFoto(id,sz){return 'https://drive.google.com/thumbnail?id='+id+'&sz=w'+(sz||400);}
 function fotosDe(refId,etapa){return (DB.fotos||[]).filter(f=>f.refId===refId&&(!etapa||f.etapa===etapa)).sort((a,b)=>(a.timestamp||0)-(b.timestamp||0));}
@@ -954,6 +1012,14 @@ function sincronizar(){
     }
   }).catch(()=>{});
   // Busca fotos (metadados — as imagens ficam no Drive)
+  fetch(url+'?acao=getCronoFeitos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(data){
+    if(data&&data.cronoFeitos){
+      if(!DB.cronoFeitos)DB.cronoFeitos=[];
+      data.cronoFeitos.forEach(function(cf){ if(cf&&!DB.cronoFeitos.find(x=>x.itemId===cf.itemId&&x.colaboradorId===cf.colaboradorId&&x.data===cf.data)) DB.cronoFeitos.push(cf); });
+      salvarDB();
+      if(document.getElementById('page-tarefasfeitas')&&document.getElementById('page-tarefasfeitas').classList.contains('active')) renderTarefasFeitas();
+    }
+  }).catch(function(){});
   fetch(url+'?acao=getFotos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(function(data){
     if(data&&data.fotos){
       if(!DB.fotos)DB.fotos=[];
@@ -1770,13 +1836,22 @@ function renderPontoRegs(){
       <td>${trab?mToHH(trab):'—'}</td>
       <td>${col.escala==='12x36'?'12:00':mToHH(prev)}</td>
       <td><span class="badge ${saldo>=0?'b-ativo':'b-afastado'}">${(saldo>=0?'+':'')+mToHH(saldo)}</span>${feriado?'<span class="badge b-afastado" style="margin-left:4px;">100%</span>':''}${noturno?'<span style="margin-left:4px;">🌙</span>':''}</td>
-      <td>${p?.obs||'—'}</td>
+      <td>${p?.obs||'—'}${_gpsPonto(p)}</td>
       <td>${fotosPontoIcones(col.id,data)}<button class="btn btn-ghost btn-sm" onclick="abrirAjustePonto('${col.id}','${data}')">✏️ Ajustar</button></td>
     </tr>`);
   });
   tb.innerHTML=linhas.join('')||'<tr><td colspan="12" style="text-align:center;color:var(--text3);padding:14px">Nenhum registro.</td></tr>';
 }
 
+function _gpsLink(g){return g&&g.lat?`https://maps.google.com/?q=${g.lat},${g.lng}`:'';}
+function _gpsPonto(p){
+  if(!p)return '';
+  const e=p.geo_e,s=p.geo_s;
+  let out='';
+  if(e&&e.lat)out+=`<a href="${_gpsLink(e)}" target="_blank" title="Entrada ±${e.acc||'?'}m" style="color:var(--brand);font-size:11px;font-weight:700;display:inline-flex;gap:2px;margin-top:3px;">📍 entrada</a>`;
+  if(s&&s.lat)out+=`${e&&e.lat?' · ':''}<a href="${_gpsLink(s)}" target="_blank" title="Saída ±${s.acc||'?'}m" style="color:var(--brand);font-size:11px;font-weight:700;">📍 saída</a>`;
+  return out?`<div>${out}</div>`:'';
+}
 function abrirAjustePonto(colId,data){
   const p=lerPontoG(colId,data)||{};
   document.getElementById('aj-col-id').value=colId;
@@ -2124,6 +2199,18 @@ function coletarTarefasDoCrono(){
   return resultado;
 }
 
+function toggleVisibColabs(){
+  const esp=document.getElementById('crono-visib').value==='especifico';
+  document.getElementById('crono-colabs-box').style.display=esp?'block':'none';
+  if(esp)popCronoColabs();
+}
+function popCronoColabs(marcados){
+  const sel=new Set(marcados||[]);
+  const lista=document.getElementById('crono-colabs-lista');
+  const ativos=DB.colaboradores.filter(c=>c.status!=='inativo');
+  lista.innerHTML=ativos.length?ativos.map(c=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;">
+    <input type="checkbox" class="crono-colab-chk" value="${c.id}" ${sel.has(c.id)?'checked':''} style="width:auto;"> ${c.nome} <span style="color:var(--text3);font-size:10px;">${c.funcao||''}</span></label>`).join(''):'<span style="color:var(--text3);font-size:12px;">Nenhum colaborador cadastrado.</span>';
+}
 function salvarCronograma(){
   var nome = document.getElementById('crono-nome').value.trim();
   var cliente = document.getElementById('crono-cliente').value.trim();
@@ -2137,10 +2224,17 @@ function salvarCronograma(){
   if(!temTarefas){ alert('Adicione pelo menos uma tarefa.'); return; }
   var cronos = ler('mjl_cronogramas',[]);
   var id = cronoEditandoId || gid();
+  var visib = document.getElementById('crono-visib').value;
+  var colabsIds = [];
+  if(visib==='especifico'){
+    document.querySelectorAll('.crono-colab-chk:checked').forEach(function(ch){ colabsIds.push(ch.value); });
+    if(!colabsIds.length){ alert('Marque ao menos um colaborador (ou volte para "Todos da função").'); return; }
+  }
   var obj = {
     id: id, nome: nome, cliente: cliente, funcao: funcao,
     obs: document.getElementById('crono-obs').value.trim(),
     dias: diasAtivos, tarefasPorDia: tarefasPorDia,
+    visib: visib, colabsIds: colabsIds,
     ativo: true, criadoEm: new Date().toISOString()
   };
   if(cronoEditandoId){
@@ -2269,6 +2363,9 @@ function editarCronograma(id){
   document.getElementById('crono-nome').value = c.nome;
   document.getElementById('crono-obs').value = c.obs||'';
   document.getElementById('crono-funcao').value = c.funcao||'ASG';
+  document.getElementById('crono-visib').value = c.visib||'funcao';
+  toggleVisibColabs();
+  if((c.visib||'funcao')==='especifico') popCronoColabs(c.colabsIds||[]);
   // Popular clientes
   var cols = ler('mjl_gestao_cols',[]);
   var clientes = [...new Set(cols.map(function(col){ return col.posto||col.cliente||''; }).filter(Boolean))];
@@ -2356,7 +2453,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v13';
+  b.textContent='MJL Gestão v14';
   document.body.appendChild(b);
 })();
 </script>
