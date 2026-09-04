@@ -175,6 +175,9 @@ tr:hover td{background:var(--brand-light);}
   .modal-overlay{align-items:flex-end;padding:0;}
   .stats-grid{grid-template-columns:1fr 1fr;}
 }
+
+.cli-dia-btn{border:1.5px solid var(--border);border-radius:8px;padding:7px 11px;font-size:12px;font-weight:700;cursor:pointer;user-select:none;color:var(--text3);background:#fff;}
+.cli-dia-btn.on{background:var(--brand);border-color:var(--brand);color:#fff;}
 </style>
 
 <style id="print-styles">
@@ -624,6 +627,25 @@ tr:hover td{background:var(--brand-light);}
       <div class="fg"><label>Responsável</label><input type="text" id="mcli-resp"></div>
     </div>
     <div class="fg"><label>Telefone</label><input type="tel" id="mcli-tel"></div>
+    <div class="fg" style="background:var(--bg);border-radius:8px;padding:12px;">
+      <label>📅 Dias de atendimento no local *</label>
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 8px;">Marque os dias em que a MJL atende este local. O cronograma já vem com esses dias marcados, e as tarefas periódicas nunca caem num dia sem atendimento.</p>
+      <div id="mcli-dias-grid" style="display:flex;gap:5px;flex-wrap:wrap;">
+        <div class="cli-dia-btn" data-dia="1" onclick="this.classList.toggle('on');contarDiasCli()">SEG</div>
+        <div class="cli-dia-btn" data-dia="2" onclick="this.classList.toggle('on');contarDiasCli()">TER</div>
+        <div class="cli-dia-btn" data-dia="3" onclick="this.classList.toggle('on');contarDiasCli()">QUA</div>
+        <div class="cli-dia-btn" data-dia="4" onclick="this.classList.toggle('on');contarDiasCli()">QUI</div>
+        <div class="cli-dia-btn" data-dia="5" onclick="this.classList.toggle('on');contarDiasCli()">SEX</div>
+        <div class="cli-dia-btn" data-dia="6" onclick="this.classList.toggle('on');contarDiasCli()">SÁB</div>
+        <div class="cli-dia-btn" data-dia="0" onclick="this.classList.toggle('on');contarDiasCli()">DOM</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="presetDiasCli([1,2,3,4,5])">Seg a Sex</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="presetDiasCli([1,2,3,4,5,6])">Seg a Sáb</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="presetDiasCli([0,1,2,3,4,5,6])">Todos os dias</button>
+        <span id="mcli-dias-cont" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--brand);align-self:center;"></span>
+      </div>
+    </div>
     <div class="fg"><label>Observações</label><textarea id="mcli-obs"></textarea></div>
     <div style="display:flex;gap:10px;">
       <button class="btn btn-primary btn-block" onclick="salvarCli()">Salvar</button>
@@ -746,7 +768,7 @@ tr:hover td{background:var(--brand-light);}
   <div class="modal-body">
     <input type="hidden" id="crono-id">
     <div class="form-row">
-      <div class="fg"><label>Cliente / Local *</label><select id="crono-cliente"></select></div>
+      <div class="fg"><label>Cliente / Local *</label><select id="crono-cliente" onchange="aplicarDiasDoCliente()"></select></div>
       <div class="fg"><label>Função *</label>
         <select id="crono-funcao">
           <option>ASG</option><option>Porteiro</option><option>Zelador</option>
@@ -771,18 +793,31 @@ tr:hover td{background:var(--brand-light);}
       <div id="crono-colabs-lista" style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:6px;max-height:160px;overflow-y:auto;"></div>
     </div>
     <div class="fg">
-      <label>Dias com tarefas (clique para ativar)</label>
+      <label>Dias com tarefas (segunda a domingo)</label>
+      <div id="crono-dias-aviso" style="font-size:11px;color:var(--text3);margin-bottom:6px;"></div>
       <div class="dias-semana-grid" id="crono-dias-grid">
-        <div class="dia-btn" data-dia="0" onclick="toggleDia(this)"><div class="dia-nome">DOM</div></div>
         <div class="dia-btn" data-dia="1" onclick="toggleDia(this)"><div class="dia-nome">SEG</div></div>
         <div class="dia-btn" data-dia="2" onclick="toggleDia(this)"><div class="dia-nome">TER</div></div>
         <div class="dia-btn" data-dia="3" onclick="toggleDia(this)"><div class="dia-nome">QUA</div></div>
         <div class="dia-btn" data-dia="4" onclick="toggleDia(this)"><div class="dia-nome">QUI</div></div>
         <div class="dia-btn" data-dia="5" onclick="toggleDia(this)"><div class="dia-nome">SEX</div></div>
         <div class="dia-btn" data-dia="6" onclick="toggleDia(this)"><div class="dia-nome">SÁB</div></div>
+        <div class="dia-btn" data-dia="0" onclick="toggleDia(this)"><div class="dia-nome">DOM</div></div>
       </div>
     </div>
     <div id="crono-tarefas-container"></div>
+    <div class="fg" style="margin-top:16px;background:var(--bg);border-radius:8px;padding:12px;">
+      <label style="font-weight:700;">🔁 Tarefas periódicas (quinzenal, a cada 20 dias, mensal...)</label>
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 10px;line-height:1.5;">O sistema calcula a data e mostra a tarefa no App Campo só no dia certo. Se cair num dia sem cronograma (ex.: domingo), ela vai para o próximo dia com cronograma.</p>
+      <div id="crono-periodicas-lista"></div>
+      <div style="display:grid;grid-template-columns:2fr 1.3fr 0.7fr 1.1fr auto;gap:6px;align-items:end;margin-top:8px;">
+        <div><label style="font-size:10px;">Tarefa</label><input type="text" id="per-texto" placeholder="Ex: Lavar garagem" style="font-size:13px;"></div>
+        <div><label style="font-size:10px;">Frequência</label><select id="per-tipo" onchange="atualizarCamposPer()" style="font-size:13px;"><option value="dias">A cada N dias</option><option value="mensal">Todo mês, dia X</option></select></div>
+        <div><label style="font-size:10px;" id="per-num-label">N dias</label><input type="number" id="per-num" value="15" min="1" max="31" style="font-size:13px;"></div>
+        <div id="per-inicio-box"><label style="font-size:10px;">1ª vez em</label><input type="date" id="per-inicio" style="font-size:13px;"></div>
+        <button class="btn btn-primary btn-sm" onclick="adicionarPeriodica()" style="padding:9px 14px;">+</button>
+      </div>
+    </div>
     <div style="display:flex;gap:10px;margin-top:14px;">
       <button class="btn btn-primary" style="flex:1" onclick="salvarCronograma()">📤 Publicar cronograma</button>
       <button class="btn btn-ghost" onclick="fecharModal('modal-crono')">Cancelar</button>
@@ -955,7 +990,7 @@ function renderTarefasFeitas(){
         return `<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
           <span style="color:var(--green);font-size:16px;">✔️</span>
           <div style="flex:1;">
-            <div style="font-size:13px;font-weight:600;">${x.colaboradorNome||'Colaborador'}</div>
+            <div style="font-size:13px;font-weight:600;">${x.colaboradorNome||'Colaborador'}${nomeTarefaPorId(x.itemId)?' <span style="font-weight:400;color:var(--text2);">· '+escaparHTML(nomeTarefaPorId(x.itemId))+'</span>':''}</div>
             <div style="font-size:11px;color:var(--text3);">concluiu às ${x.hora||'—'}${x.foto?' · 📷 com foto':''}</div>
           </div>
           ${fotos.length?`<img src="${thumbFoto(fotos[0].id,100)}" loading="lazy" onclick="abrirFoto('${fotos[0].id}')" style="width:34px;height:34px;object-fit:cover;border-radius:6px;cursor:pointer;border:1.5px solid var(--border);">`:''}
@@ -1237,6 +1272,28 @@ function renderCol(filtro){
 }
 
 // ===== CLIENTES =====
+var DIAS_ORDEM=[1,2,3,4,5,6,0]; // segunda a domingo
+function ordenaDias(ds){ return DIAS_ORDEM.filter(function(d){ return (ds||[]).indexOf(d)>=0; }); }
+function contarDiasCli(){
+  var n=document.querySelectorAll('#mcli-dias-grid .cli-dia-btn.on').length;
+  document.getElementById('mcli-dias-cont').textContent=n?n+' dia(s) por semana':'⚠️ nenhum dia marcado';
+}
+function presetDiasCli(ds){
+  document.querySelectorAll('#mcli-dias-grid .cli-dia-btn').forEach(function(b){ b.classList.toggle('on', ds.indexOf(parseInt(b.dataset.dia))>=0); });
+  contarDiasCli();
+}
+function diasDoCliente(nomeOuId){
+  var c=(DB.clientes||[]).find(function(x){ return x.id===nomeOuId||String(x.nome).toLowerCase()===String(nomeOuId).toLowerCase(); });
+  return (c&&c.diasAtend&&c.diasAtend.length)?c.diasAtend.slice():null;
+}
+function descDiasCliente(ds){
+  ds=ordenaDias(ds);
+  if(!ds.length) return '—';
+  if(ds.length===7) return 'Todos os dias (7)';
+  if(ds.join()==='1,2,3,4,5') return 'Seg a Sex (5)';
+  if(ds.join()==='1,2,3,4,5,6') return 'Seg a Sáb (6)';
+  return ds.map(function(d){ return DIAS_CURTOS[d]; }).join(', ')+' ('+ds.length+')';
+}
 function abrirModalCli(id){
   if(id){
     const c=DB.clientes.find(x=>x.id===id);
@@ -1247,9 +1304,11 @@ function abrirModalCli(id){
     document.getElementById('mcli-resp').value=c.resp||'';
     document.getElementById('mcli-tel').value=c.tel||'';
     document.getElementById('mcli-obs').value=c.obs||'';
+    presetDiasCli(c.diasAtend||[1,2,3,4,5]);
   } else {
     document.getElementById('mcli-titulo').textContent='Novo Cliente';
     ['mcli-id','mcli-nome','mcli-end','mcli-resp','mcli-tel','mcli-obs'].forEach(i=>document.getElementById(i).value='');
+    presetDiasCli([1,2,3,4,5]);
   }
   document.getElementById('modal-cli').classList.remove('hidden');
 }
@@ -1260,7 +1319,9 @@ function salvarCli(){
   const id=document.getElementById('mcli-id').value;
   const obj={id:id||gid(),nome,end:document.getElementById('mcli-end').value.trim(),
     resp:document.getElementById('mcli-resp').value.trim(),tel:document.getElementById('mcli-tel').value.trim(),
-    obs:document.getElementById('mcli-obs').value.trim()};
+    obs:document.getElementById('mcli-obs').value.trim(),
+    diasAtend:(function(){var d=[];document.querySelectorAll('#mcli-dias-grid .cli-dia-btn.on').forEach(function(b){d.push(parseInt(b.dataset.dia));});return ordenaDias(d);})()};
+  if(!obj.diasAtend.length){ alert('Marque os dias de atendimento no local.'); return; }
   if(id){ const i=DB.clientes.findIndex(x=>x.id===id); DB.clientes[i]=obj; }
   else DB.clientes.push(obj);
   salvarDB(); fecharModal('modal-cli'); renderCli(); renderDash();
@@ -1280,6 +1341,7 @@ function renderCli(){
       ${c.end?`<div style="font-size:12px;color:var(--text3);margin-bottom:4px">📍 ${c.end}</div>`:''}
       ${c.resp?`<div style="font-size:12px;color:var(--text2);margin-bottom:4px">👤 ${c.resp}</div>`:''}
       ${c.tel?`<div style="font-size:12px;color:var(--text2);margin-bottom:8px">📞 ${c.tel}</div>`:''}
+      <div style="font-size:12px;color:var(--text2);margin-bottom:4px">📅 ${descDiasCliente(c.diasAtend||[])}</div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <button class="btn btn-ghost btn-sm" onclick="abrirModalCli('${c.id}')">Editar</button>
         <button class="btn btn-danger btn-sm" onclick="excluirCli('${c.id}')">Excluir</button>
@@ -2129,6 +2191,7 @@ function abrirModalNovoCrono(){
   // Resetar dias
   document.querySelectorAll('#crono-dias-grid .dia-btn').forEach(function(b){ b.classList.remove('ativo'); });
   document.getElementById('crono-tarefas-container').innerHTML = '';
+  cronoPeriodicas=[]; renderPeriodicas(); var av=document.getElementById('crono-dias-aviso'); if(av) av.innerHTML=''; document.getElementById('per-inicio').value=new Date().toISOString().slice(0,10); atualizarCamposPer();
   // Popular clientes
   var cols = ler('mjl_gestao_cols',[]);
   var clientes = [...new Set(cols.map(function(c){ return c.posto||c.cliente||''; }).filter(Boolean))];
@@ -2143,17 +2206,26 @@ function abrirModalNovoCrono(){
   var mc=document.getElementById('modal-crono'); mc.classList.remove('hidden'); mc.style.display='flex';
 }
 
+function aplicarDiasDoCliente(manterMarcados){
+  var nome=document.getElementById('crono-cliente').value;
+  var ds=diasDoCliente(nome);
+  var aviso=document.getElementById('crono-dias-aviso');
+  if(!ds){ if(aviso) aviso.innerHTML='<span style="color:var(--laranja,#b26a00);">⚠️ Este local ainda não tem dias de atendimento cadastrados. Vá em Clientes/Locais → Editar para definir.</span>'; return; }
+  if(aviso) aviso.innerHTML='📅 Atendimento neste local: <strong>'+descDiasCliente(ds)+'</strong> — os dias já vêm marcados.';
+  if(!manterMarcados){
+    document.querySelectorAll('#crono-dias-grid .dia-btn').forEach(function(b){ b.classList.toggle('ativo', ds.indexOf(parseInt(b.dataset.dia))>=0); });
+    renderTarefasPorDia(); renderPeriodicas();
+  }
+}
 function toggleDia(btn){
   btn.classList.toggle('ativo');
   renderTarefasPorDia();
+  renderPeriodicas();
 }
 
 function renderTarefasPorDia(){
   var container = document.getElementById('crono-tarefas-container');
-  var diasAtivos = [];
-  document.querySelectorAll('#crono-dias-grid .dia-btn.ativo').forEach(function(b){
-    diasAtivos.push(parseInt(b.dataset.dia));
-  });
+  var diasAtivos = _diasSelecionadosCrono();
   // Preservar tarefas já digitadas
   var tarefasExistentes = {};
   container.querySelectorAll('.dia-tarefas-section').forEach(function(sec){
@@ -2258,17 +2330,110 @@ function popCronoColabs(marcados){
   lista.innerHTML=ativos.length?ativos.map(c=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;">
     <input type="checkbox" class="crono-colab-chk" value="${c.id}" ${sel.has(c.id)?'checked':''} style="width:auto;"> ${c.nome} <span style="color:var(--text3);font-size:10px;">${c.funcao||''}</span></label>`).join(''):'<span style="color:var(--text3);font-size:12px;">Nenhum colaborador cadastrado.</span>';
 }
+// ===== TAREFAS PERIÓDICAS (a cada N dias / mensal) — código compartilhado Campo+Gestão =====
+// Regra: a data "nominal" é calculada (início + N dias, ou dia X do mês). Se cair
+// num dia em que o cronograma não tem tarefas (ex.: domingo), a tarefa é ADIADA
+// para o próximo dia com cronograma. O ciclo seguinte continua contando da data nominal.
+function _pIso(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _pParse(s){ var p=String(s).split('-'); return new Date(+p[0],+p[1]-1,+p[2]); }
+function _pAjusta(d,dias){
+  if(!dias||!dias.length) return new Date(d);
+  var x=new Date(d);
+  for(var i=0;i<7;i++){ if(dias.indexOf(x.getDay())>=0) return x; x.setDate(x.getDate()+1); }
+  return new Date(d);
+}
+function _pNominais(t,de,ate){
+  var out=[];
+  if(t.tipo==='mensal'){
+    var dia=parseInt(t.diaMes)||1;
+    var m=new Date(de.getFullYear(),de.getMonth()-1,1);
+    while(m<=ate){
+      var ult=new Date(m.getFullYear(),m.getMonth()+1,0).getDate();
+      var d=new Date(m.getFullYear(),m.getMonth(),Math.min(dia,ult));
+      if(d>=de&&d<=ate) out.push(d);
+      m=new Date(m.getFullYear(),m.getMonth()+1,1);
+    }
+  } else {
+    var n=parseInt(t.intervalo)||15; if(n<1) n=1;
+    if(!t.inicio) return out;
+    var d2=_pParse(t.inicio);
+    if(d2<de){ var pulos=Math.floor((de-d2)/(864e5*n)); d2.setDate(d2.getDate()+pulos*n); while(d2<de) d2.setDate(d2.getDate()+n); }
+    var guard=0;
+    while(d2<=ate&&guard++<400){ out.push(new Date(d2)); d2.setDate(d2.getDate()+n); }
+  }
+  return out;
+}
+function periodicaCaiNoDia(t,dataStr,dias){
+  var alvo=_pParse(dataStr);
+  var de=new Date(alvo); de.setDate(de.getDate()-8);
+  var noms=_pNominais(t,de,alvo);
+  for(var i=0;i<noms.length;i++){ if(_pIso(_pAjusta(noms[i],dias))===dataStr) return true; }
+  return false;
+}
+function proximasPeriodica(t,dias,qtd){
+  qtd=qtd||3;
+  var hoje=new Date(); hoje.setHours(0,0,0,0);
+  var de=new Date(hoje); de.setDate(de.getDate()-8);
+  var ate=new Date(hoje); ate.setDate(ate.getDate()+(t.tipo==='mensal'?32*qtd:(parseInt(t.intervalo)||15)*qtd)+8);
+  var noms=_pNominais(t,de,ate), out=[];
+  noms.forEach(function(n){ var e=_pAjusta(n,dias); if(e>=hoje&&out.length<qtd) out.push(e); });
+  return out;
+}
+function descPeriodica(t){
+  if(t.tipo==='mensal') return '📅 Mensal · dia '+(parseInt(t.diaMes)||1);
+  var n=parseInt(t.intervalo)||15;
+  return n===7?'🔁 Semanal':n===15?'🔁 Quinzenal':n===30?'🔁 A cada 30 dias':'🔁 A cada '+n+' dias';
+}
+
+var cronoPeriodicas=[];
+function _diasSelecionadosCrono(){ var d=[]; document.querySelectorAll('#crono-dias-grid .dia-btn.ativo').forEach(function(b){ d.push(parseInt(b.dataset.dia)); }); return ordenaDias(d); }
+function atualizarCamposPer(){
+  var mensal=document.getElementById('per-tipo').value==='mensal';
+  document.getElementById('per-num-label').textContent=mensal?'Dia do mês':'N dias';
+  document.getElementById('per-inicio-box').style.visibility=mensal?'hidden':'visible';
+  var n=document.getElementById('per-num'); if(mensal&&(+n.value>31)) n.value=1;
+}
+function adicionarPeriodica(){
+  var texto=document.getElementById('per-texto').value.trim();
+  var tipo=document.getElementById('per-tipo').value;
+  var num=parseInt(document.getElementById('per-num').value)||0;
+  var inicio=document.getElementById('per-inicio').value;
+  if(!texto){ alert('Digite a tarefa.'); return; }
+  if(tipo==='mensal'){ if(num<1||num>31){ alert('Dia do mês deve ser de 1 a 31.'); return; } }
+  else { if(num<1){ alert('Informe a cada quantos dias.'); return; } if(!inicio){ alert('Informe a data da 1ª vez (o sistema conta a partir dela).'); return; } }
+  cronoPeriodicas.push(tipo==='mensal'?{id:gid(),texto:texto,tipo:'mensal',diaMes:num}:{id:gid(),texto:texto,tipo:'dias',intervalo:num,inicio:inicio});
+  document.getElementById('per-texto').value='';
+  renderPeriodicas(); document.getElementById('per-texto').focus();
+}
+function removerPeriodica(i){ cronoPeriodicas.splice(i,1); renderPeriodicas(); }
+function renderPeriodicas(){
+  var el=document.getElementById('crono-periodicas-lista'); if(!el) return;
+  var dias=_diasSelecionadosCrono();
+  if(!cronoPeriodicas.length){ el.innerHTML='<div style="font-size:12px;color:var(--text3);">Nenhuma tarefa periódica.</div>'; return; }
+  el.innerHTML=cronoPeriodicas.map(function(t,i){
+    var prox=proximasPeriodica(t,dias,3).map(function(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }).join(', ');
+    return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
+  }).join('');
+}
+function nomeTarefaPorId(itemId){
+  var cronos=ler('mjl_cronogramas',[]);
+  for(var i=0;i<cronos.length;i++){ var c=cronos[i]; if(!c||!itemId||String(itemId).indexOf(c.id)!==0) continue;
+    var resto=String(itemId).slice(c.id.length);
+    var m=resto.match(/^_d(\d)_(\d+)$/); if(m){ var l=(c.tarefasPorDia||{})[m[1]]||[]; return l[+m[2]]||''; }
+    var mp=resto.match(/^_p(.+)$/); if(mp){ var t=(c.periodicas||[]).find(function(x){ return x.id===mp[1]; }); return t?t.texto+' ('+descPeriodica(t)+')':''; }
+  }
+  return '';
+}
 function salvarCronograma(){
   var nome = document.getElementById('crono-nome').value.trim();
   var cliente = document.getElementById('crono-cliente').value.trim();
   var funcao = document.getElementById('crono-funcao').value;
   if(!nome||!cliente){ alert('Preencha o nome e o cliente.'); return; }
-  var diasAtivos = [];
-  document.querySelectorAll('#crono-dias-grid .dia-btn.ativo').forEach(function(b){ diasAtivos.push(parseInt(b.dataset.dia)); });
+  var diasAtivos = _diasSelecionadosCrono();
   if(!diasAtivos.length){ alert('Selecione pelo menos um dia da semana.'); return; }
   var tarefasPorDia = coletarTarefasDoCrono();
   var temTarefas = diasAtivos.some(function(d){ return tarefasPorDia[d]&&tarefasPorDia[d].length; });
-  if(!temTarefas){ alert('Adicione pelo menos uma tarefa.'); return; }
+  if(!temTarefas&&!cronoPeriodicas.length){ alert('Adicione pelo menos uma tarefa.'); return; }
   var cronos = ler('mjl_cronogramas',[]);
   var id = cronoEditandoId || gid();
   var visib = document.getElementById('crono-visib').value;
@@ -2281,7 +2446,7 @@ function salvarCronograma(){
     id: id, nome: nome, cliente: cliente, funcao: funcao,
     obs: document.getElementById('crono-obs').value.trim(),
     dias: diasAtivos, tarefasPorDia: tarefasPorDia,
-    visib: visib, colabsIds: colabsIds,
+    visib: visib, colabsIds: colabsIds, periodicas: cronoPeriodicas.slice(),
     ativo: true, criadoEm: new Date().toISOString()
   };
   if(cronoEditandoId){
@@ -2313,9 +2478,10 @@ function renderListaCronogramas(filtroFuncao){
     return;
   }
   container.innerHTML = cronos.map(function(c){
-    var diasStr = (c.dias||[]).map(function(d){ return DIAS_CURTOS[d]; }).join(', ');
+    var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_CURTOS[d]; }).join(', ');
     var totalTarefas = 0;
     if(c.tarefasPorDia) Object.values(c.tarefasPorDia).forEach(function(t){ totalTarefas+=t.length; });
+    var nPer=(c.periodicas||[]).length;
     var cid = c.id;
     return '<div class="crono-card">' +
       '<div class="crono-card-hdr">' +
@@ -2328,10 +2494,11 @@ function renderListaCronogramas(filtroFuncao){
       '</div>' +
       '<div class="crono-card-body">' +
         '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
-          (c.dias||[]).map(function(d){
+          ordenaDias(c.dias).map(function(d){
             var qtd = c.tarefasPorDia&&c.tarefasPorDia[d] ? c.tarefasPorDia[d].length : 0;
             return '<div style="background:var(--brand-light);border-radius:8px;padding:6px 10px;font-size:12px;"><strong>'+DIAS_NOMES[d]+'</strong><br><span style="color:var(--text3);">'+qtd+' tarefa(s)</span></div>';
           }).join('') +
+          (nPer?'<div style="background:#f3e8f7;border-radius:8px;padding:6px 10px;font-size:12px;"><strong>🔁 Periódicas</strong><br><span style="color:var(--text3);">'+nPer+' tarefa(s)</span></div>':'') +
         '</div>' +
         (c.obs?'<div style="font-size:12px;color:var(--text2);margin-top:10px;padding:8px;background:var(--yellow-light);border-radius:6px;">⚠️ '+c.obs+'</div>':'') +
       '</div>' +
@@ -2352,7 +2519,7 @@ function verCronograma(id){
   document.getElementById('mvc-crono-titulo').textContent = c.nome;
   document.getElementById('btn-editar-crono').onclick = function(){ fecharModal('modal-ver-crono'); editarCronograma(id); };
   document.getElementById('btn-excluir-crono').onclick = function(){ excluirCronograma(id); };
-  var diasStr = (c.dias||[]).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
+  var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
   var html = '<div id="crono-para-imprimir" class="crono-print">';
   // Cabeçalho
   html += '<div class="crono-print-hdr">';
@@ -2363,7 +2530,7 @@ function verCronograma(id){
   html += '<div class="crono-print-titulo">'+c.nome+'</div>';
   html += '<div class="crono-print-info">Função: '+c.funcao+' · Dias: '+diasStr+'</div>';
   // Tarefas por dia
-  (c.dias||[]).forEach(function(dia){
+  ordenaDias(c.dias).forEach(function(dia){
     var tarefas = c.tarefasPorDia&&c.tarefasPorDia[dia] ? c.tarefasPorDia[dia] : [];
     html += '<div class="crono-dia-bloco">';
     html += '<div class="crono-dia-nome">'+DIAS_NOMES[dia].toUpperCase()+'</div>';
@@ -2374,6 +2541,17 @@ function verCronograma(id){
     if(!tarefas.length) html += '<div style="color:var(--text3);font-size:12px;padding:6px 0;">Nenhuma tarefa.</div>';
     html += '</div></div>';
   });
+  // Tarefas periódicas
+  if(c.periodicas&&c.periodicas.length){
+    html += '<div class="crono-dia-bloco">';
+    html += '<div class="crono-dia-nome">🔁 TAREFAS PERIÓDICAS</div>';
+    html += '<div class="crono-dia-tarefas">';
+    c.periodicas.forEach(function(t){
+      var prox=proximasPeriodica(t,c.dias||[],3).map(function(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }).join(', ');
+      html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(t.texto)+' <span style="color:var(--text3);font-size:11px;">— '+descPeriodica(t)+' · próximas: '+(prox||'—')+'</span></span></div>';
+    });
+    html += '</div></div>';
+  }
   // Observação
   if(c.obs){
     html += '<div style="background:var(--yellow-light);border:1px solid #f5d88e;border-radius:6px;padding:10px;margin-top:12px;font-size:12px;">⚠️ <strong>Obs.:</strong> '+c.obs+'</div>';
@@ -2433,13 +2611,14 @@ function editarCronograma(id){
   renderTarefasPorDia();
   // Preencher tarefas existentes
   if(c.tarefasPorDia){
-    (c.dias||[]).forEach(function(dia){
+    ordenaDias(c.dias).forEach(function(dia){
       var lista = document.querySelector('.lista-tarefas-'+dia);
       if(!lista) return;
       lista.innerHTML = '';
       (c.tarefasPorDia[dia]||[]).forEach(function(t,i){ lista.insertAdjacentHTML('beforeend', renderTarefaItem(dia,t,i)); });
     });
   }
+  cronoPeriodicas=(c.periodicas||[]).slice(); renderPeriodicas(); aplicarDiasDoCliente(true); document.getElementById('per-inicio').value=new Date().toISOString().slice(0,10); atualizarCamposPer();
   document.getElementById('modal-ver-crono').classList.add('hidden');
   var mc=document.getElementById('modal-crono'); mc.classList.remove('hidden'); mc.style.display='flex';
 }
@@ -2500,7 +2679,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v16';
+  b.textContent='MJL Gestão v17';
   document.body.appendChild(b);
 })();
 </script>
