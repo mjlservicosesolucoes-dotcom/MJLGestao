@@ -825,6 +825,26 @@ tr:hover td{background:var(--brand-light);}
   </div>
 </div></div>
 
+<!-- MODAL COBERTURA -->
+<div id="modal-cobertura" class="modal-overlay hidden"><div class="modal" style="max-width:560px;">
+  <div class="modal-hdr"><h3>🔄 Cobertura — <span id="cob-local"></span></h3><button class="modal-cls" onclick="fecharModal('modal-cobertura')">×</button></div>
+  <div class="modal-body">
+    <input type="hidden" id="cob-crono-id">
+    <p style="font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:12px;">Falta, atestado, férias: escolha quem vai cobrir e o período. Durante esses dias o cronograma deste local aparece no App Campo do colaborador escolhido, no topo, marcado como cobertura. Depois some sozinho.</p>
+    <div id="cob-lista" style="margin-bottom:12px;"></div>
+    <div style="display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:6px;align-items:end;">
+      <div class="fg" style="margin:0;"><label style="font-size:10px;">Quem vai cobrir</label><select id="cob-colab" style="font-size:13px;"></select></div>
+      <div class="fg" style="margin:0;"><label style="font-size:10px;">De</label><input type="date" id="cob-de" style="font-size:13px;"></div>
+      <div class="fg" style="margin:0;"><label style="font-size:10px;">Até</label><input type="date" id="cob-ate" style="font-size:13px;"></div>
+      <button class="btn btn-primary btn-sm" onclick="adicionarCobertura()" style="padding:9px 14px;">+</button>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:14px;">
+      <button class="btn btn-primary" style="flex:1" onclick="salvarCoberturas()">💾 Salvar e publicar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-cobertura')">Cancelar</button>
+    </div>
+  </div>
+</div></div>
+
 <!-- MODAL VER CRONOGRAMA -->
 <div id="modal-ver-crono" class="modal-overlay hidden"><div class="modal" style="max-width:620px;">
   <div class="modal-hdr"><h3 id="mvc-crono-titulo">Cronograma</h3><button class="modal-cls" onclick="fecharModal('modal-ver-crono')">×</button></div>
@@ -1029,7 +1049,8 @@ function sincronizar(){
   // e chamados. Só envia quando há dados locais.
   if(DB.colaboradores.length){
     const payload={acao:'setColaboradores',colaboradores:DB.colaboradores.map(c=>({
-      id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status
+      id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status,
+      clientes:(c.clientesIds&&c.clientesIds.length?c.clientesIds:[c.clienteId]).map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
     }))};
     fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
   }
@@ -2467,6 +2488,58 @@ function salvarCronograma(){
   alert('✅ Cronograma publicado! Já aparece no App Campo.');
 }
 
+// ===== COBERTURA (falta / atestado / férias) =====
+var _cobCronoId=null, _cobLista=[];
+function _hojeISO(){ return new Date().toISOString().slice(0,10); }
+function coberturaAtiva(cb,dataStr){ dataStr=dataStr||_hojeISO(); return cb&&cb.de&&cb.ate&&dataStr>=cb.de&&dataStr<=cb.ate; }
+function abrirCobertura(id){
+  var c=ler('mjl_cronogramas',[]).find(function(x){ return x.id===id; }); if(!c) return;
+  _cobCronoId=id; _cobLista=(c.coberturas||[]).slice();
+  document.getElementById('cob-local').textContent=c.cliente||c.nome;
+  document.getElementById('cob-crono-id').value=id;
+  var ativos=(DB.colaboradores||[]).filter(function(x){ return x.status!=='inativo'; });
+  document.getElementById('cob-colab').innerHTML='<option value="">Selecione...</option>'+ativos.map(function(x){ return '<option value="'+x.id+'">'+x.nome+' — '+(x.funcao||'')+'</option>'; }).join('');
+  document.getElementById('cob-de').value=_hojeISO();
+  document.getElementById('cob-ate').value=_hojeISO();
+  renderCoberturas();
+  var m=document.getElementById('modal-cobertura'); m.classList.remove('hidden'); m.style.display='flex';
+}
+function renderCoberturas(){
+  var el=document.getElementById('cob-lista'); if(!el) return;
+  if(!_cobLista.length){ el.innerHTML='<div style="font-size:12px;color:var(--text3);">Nenhuma cobertura cadastrada.</div>'; return; }
+  el.innerHTML=_cobLista.map(function(cb,i){
+    var nome=((DB.colaboradores||[]).find(function(x){ return x.id===cb.colabId; })||{}).nome||'(colaborador removido)';
+    var ativa=coberturaAtiva(cb);
+    var fim=cb.ate<_hojeISO();
+    return '<div class="tarefa-item"><span style="font-size:14px;">'+(ativa?'🟢':(fim?'⚪':'🔵'))+'</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(nome)+'</div><div style="font-size:11px;color:var(--text3);">'+cb.de.split('-').reverse().join('/')+' a '+cb.ate.split('-').reverse().join('/')+(cb.motivo?' · '+escaparHTML(cb.motivo):'')+' · '+(ativa?'em cobertura hoje':(fim?'encerrada':'agendada'))+'</div></div><button class="ti-del" onclick="_cobLista.splice('+i+',1);renderCoberturas()">×</button></div>';
+  }).join('');
+}
+function adicionarCobertura(){
+  var colabId=document.getElementById('cob-colab').value;
+  var de=document.getElementById('cob-de').value, ate=document.getElementById('cob-ate').value;
+  if(!colabId){ alert('Escolha quem vai cobrir.'); return; }
+  if(!de||!ate){ alert('Informe o período.'); return; }
+  if(ate<de){ alert('A data final não pode ser antes da inicial.'); return; }
+  _cobLista.push({id:gid(),colabId:colabId,de:de,ate:ate});
+  renderCoberturas();
+}
+function salvarCoberturas(){
+  var cronos=ler('mjl_cronogramas',[]);
+  var i=cronos.findIndex(function(x){ return x.id===_cobCronoId; });
+  if(i<0) return;
+  // limpa coberturas encerradas há mais de 60 dias
+  var limite=new Date(); limite.setDate(limite.getDate()-60); var lim=limite.toISOString().slice(0,10);
+  cronos[i].coberturas=_cobLista.filter(function(cb){ return cb.ate>=lim; });
+  salvar('mjl_cronogramas',cronos);
+  var url=localStorage.getItem('mjl_gestao_script_url');
+  if(url&&navigator.onLine){
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({acao:'setCronogramas',cronogramas:cronos})}).catch(function(){});
+  }
+  fecharModal('modal-cobertura'); renderListaCronogramas();
+  alert('✅ Cobertura salva! Já aparece no App Campo de quem vai cobrir.');
+}
+
 function renderListaCronogramas(filtroFuncao){
   var container = document.getElementById('lista-cronogramas');
   var cronos = ler('mjl_cronogramas',[]);
@@ -2482,6 +2555,8 @@ function renderListaCronogramas(filtroFuncao){
     var totalTarefas = 0;
     if(c.tarefasPorDia) Object.values(c.tarefasPorDia).forEach(function(t){ totalTarefas+=t.length; });
     var nPer=(c.periodicas||[]).length;
+    var cobsAtivas=(c.coberturas||[]).filter(function(cb){ return coberturaAtiva(cb); });
+    var cobTxt=cobsAtivas.map(function(cb){ return (((DB.colaboradores||[]).find(function(x){return x.id===cb.colabId;})||{}).nome)||'?'; }).join(', ');
     var cid = c.id;
     return '<div class="crono-card">' +
       '<div class="crono-card-hdr">' +
@@ -2490,6 +2565,7 @@ function renderListaCronogramas(filtroFuncao){
         '<div style="display:flex;gap:6px;">' +
           '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="verCronograma(this.dataset.id)" data-id="'+cid+'">Ver</button>' +
           '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="editarCronograma(this.dataset.id)" data-id="'+cid+'">✏️</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="abrirCobertura(this.dataset.id)" data-id="'+cid+'">🔄</button>' +
         '</div>' +
       '</div>' +
       '<div class="crono-card-body">' +
@@ -2499,6 +2575,7 @@ function renderListaCronogramas(filtroFuncao){
             return '<div style="background:var(--brand-light);border-radius:8px;padding:6px 10px;font-size:12px;"><strong>'+DIAS_NOMES[d]+'</strong><br><span style="color:var(--text3);">'+qtd+' tarefa(s)</span></div>';
           }).join('') +
           (nPer?'<div style="background:#f3e8f7;border-radius:8px;padding:6px 10px;font-size:12px;"><strong>🔁 Periódicas</strong><br><span style="color:var(--text3);">'+nPer+' tarefa(s)</span></div>':'') +
+          (cobsAtivas.length?'<div style="background:#e8f5ee;border:1px solid #b7e0c8;border-radius:8px;padding:6px 10px;font-size:12px;"><strong>🔄 Cobertura hoje</strong><br><span style="color:var(--text3);">'+escaparHTML(cobTxt)+'</span></div>':'') +
         '</div>' +
         (c.obs?'<div style="font-size:12px;color:var(--text2);margin-top:10px;padding:8px;background:var(--yellow-light);border-radius:6px;">⚠️ '+c.obs+'</div>':'') +
       '</div>' +
