@@ -4986,7 +4986,7 @@ function salvarCronograma(){
 // ===================================================================
 // QR CODES PARA OS MORADORES
 // ===================================================================
-var QR_BASE_PADRAO='https://mjlservicosesolucoes-dotcom.github.io/MJLCampo/qr.html';
+var QR_BASE_PADRAO='https://script.google.com/macros/s/AKfycbxesMFYJrYPCsoka99PwLahvvxbD4qPlfXcdXKj1mcX5cenls8qHu-SM7fhJIUMGPgmGA/exec';
 function baseQR(){ return localStorage.getItem('mjl_qr_base')||QR_BASE_PADRAO; }
 function salvarBaseQR(){
   var v=(document.getElementById('qr-base').value||'').trim();
@@ -5014,7 +5014,9 @@ function _qrSVG(texto,px){
   return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+total+' '+total+'" width="'+px+'" height="'+px+'" shape-rendering="crispEdges"><rect width="'+total+'" height="'+total+'" fill="#ffffff"/><g fill="#12395a">'+r+'</g></svg>';
 }
 function _adesivo(cliente,area){
-  var url=baseQR()+'?c='+encodeURIComponent(cliente)+(area?'&a='+encodeURIComponent(area):'');
+  // v20: o parametro NAO pode se chamar "c" — o Google reserva esse nome e a
+  // pagina do Apps Script nem chega a abrir. Usar "local" e "area".
+  var url=baseQR()+'?local='+encodeURIComponent(cliente)+(area?'&area='+encodeURIComponent(area):'');
   return '<div class="qr-card">'+
     '<div class="qr-hd"><img src="'+LOGO_REL_P+'" alt="MJL"><div><div class="qr-emp">MJL Serviços e Soluções</div><div class="qr-slg">QUALIDADE E EXCELÊNCIA EM SERVIÇOS</div></div></div>'+
     '<div class="qr-tit">SERVIÇOS REALIZADOS AQUI</div>'+
@@ -5460,7 +5462,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v19';
+  b.textContent='MJL Gestão v20';
   document.body.appendChild(b);
 })();
 </script>
