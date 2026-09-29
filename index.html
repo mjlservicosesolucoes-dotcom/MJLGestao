@@ -3527,6 +3527,25 @@ function sincronizar(){
     }))};
     fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
   }
+  // v22: o cadastro de Clientes/Locais passa a ir para a planilha.
+  // Ate a v21 ele existia SO neste navegador — endereco, dias de
+  // atendimento, areas do QR, assinatura e periodicidade da visita
+  // sumiriam ao limpar os dados do site ou trocar de maquina.
+  // Mesma protecao dos colaboradores: nunca publica lista vazia.
+  if(DB.clientes.length){
+    const pcli={acao:'setClientes',clientes:DB.clientes};
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pcli)}).catch(()=>{});
+  }
+  // Dispositivo novo/limpo: importa os clientes do Sheets em vez de ficar vazio
+  if(!DB.clientes.length){
+    fetch(url+'?acao=getClientes',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
+      if(d&&d.clientes&&d.clientes.length&&!DB.clientes.length){
+        DB.clientes=d.clientes;
+        salvarDB(); renderCli&&renderCli(); renderDash&&renderDash();
+        alert('\u{1F4E5} '+d.clientes.length+' cliente(s) importado(s) do Sheets para este dispositivo.');
+      }
+    }).catch(()=>{});
+  }
   if(DB.informativos.length){
     const pi={acao:'setInformativos',informativos:DB.informativos};
     fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pi)}).catch(()=>{});
@@ -5505,7 +5524,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v21';
+  b.textContent='MJL Gestão v22';
   document.body.appendChild(b);
 })();
 </script>
