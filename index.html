@@ -669,6 +669,17 @@ tr:hover td{background:var(--brand-light);}
       <div class="fg"><label>Status</label><select id="mc-status"><option value="ativo">Ativo</option><option value="ferias">Férias</option><option value="afastado">Afastado</option></select></div>
     </div>
     <div class="form-row">
+      <div class="fg"><label>🔍 Perfil de acesso</label>
+        <select id="mc-perfil">
+          <option value="colaborador">Colaborador — app normal</option>
+          <option value="encarregado">Encarregado — faz visitas de supervisão</option>
+          <option value="supervisor">Supervisão — faz visitas de supervisão</option>
+        </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Encarregado e Supervisão enxergam o menu de Supervisão no App Campo.</div>
+      </div>
+      <div class="fg"></div>
+    </div>
+    <div class="form-row">
       <div class="fg"><label>Telefone</label><input type="tel" id="mc-tel" placeholder="(21) 99999-0000"></div>
       <div class="fg"><label>Colaborador volante?</label>
         <select id="mc-volante" onchange="toggleVolante()"><option value="nao">Não — posto fixo</option><option value="sim">Sim — vários postos</option></select>
@@ -748,6 +759,30 @@ tr:hover td{background:var(--brand-light);}
         <button type="button" class="btn btn-ghost btn-sm" onclick="presetDiasCli([0,1,2,3,4,5,6])">Todos os dias</button>
         <span id="mcli-dias-cont" style="margin-left:auto;font-size:12px;font-weight:700;color:var(--brand);align-self:center;"></span>
       </div>
+    </div>
+    <div class="fg" style="background:var(--bg);border-radius:8px;padding:12px;">
+      <label>🔍 Supervisão</label>
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 8px;">Define como a visita de acompanhamento funciona neste local.</p>
+      <div class="form-row">
+        <div class="fg" style="margin-bottom:0;">
+          <label style="font-size:11px;color:var(--text3);">Assinatura de quem recebe a visita</label>
+          <select id="mcli-assin" style="font-size:13px;">
+            <option value="obrigatoria">Obrigatória — não encerra sem assinatura</option>
+            <option value="opcional">Opcional — oferece, permite pular</option>
+            <option value="naoaplica">Não se aplica — só temos as chaves</option>
+          </select>
+        </div>
+        <div class="fg" style="margin-bottom:0;">
+          <label style="font-size:11px;color:var(--text3);">Periodicidade esperada de visita</label>
+          <select id="mcli-period" style="font-size:13px;">
+            <option value="semanal">Semanal</option>
+            <option value="quinzenal">Quinzenal</option>
+            <option value="mensal">Mensal</option>
+            <option value="">Sem meta</option>
+          </select>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text3);margin:8px 0 0;">Onde a assinatura não se aplica, a foto de encerramento passa a ser obrigatória — nenhuma visita termina sem evidência.</p>
     </div>
     <div class="fg" style="background:var(--bg);border-radius:8px;padding:12px;">
       <label>📱 QR Code para os moradores</label>
@@ -3634,6 +3669,7 @@ function abrirModalCol(id){
     document.getElementById('mc-cpf').value=c.cpf||'';
     document.getElementById('mc-func').value=c.funcao;
     document.getElementById('mc-status').value=c.status;
+    if(document.getElementById('mc-perfil')) document.getElementById('mc-perfil').value=c.perfil||'colaborador';
     document.getElementById('mc-tel').value=c.tel||'';
     document.getElementById('mc-obs').value=c.obs||'';
     document.getElementById('mc-escala').value=c.escala||'6x1';
@@ -3683,6 +3719,7 @@ function salvarCol(){
   const obj={id:id||gid(),nome,cpf,
     funcao:document.getElementById('mc-func').value,
     status:document.getElementById('mc-status').value,
+    perfil:document.getElementById('mc-perfil')?document.getElementById('mc-perfil').value:'colaborador',
     tel:document.getElementById('mc-tel').value.trim(),
     clienteId, clientesIds, posto,
     obs:document.getElementById('mc-obs').value.trim(),
@@ -3789,12 +3826,16 @@ function abrirModalCli(id){
     document.getElementById('mcli-obs').value=c.obs||'';
     presetDiasCli(c.diasAtend||[1,2,3,4,5]);
     document.getElementById('mcli-qrmodo').value=c.qrModo||'condominio';
+    document.getElementById('mcli-assin').value=c.assinaturaVisita||'opcional';
+    document.getElementById('mcli-period').value=(c.periodicidadeVisita!==undefined?c.periodicidadeVisita:'semanal');
     _areasCli=(c.areas||[]).slice(); toggleAreasCli();
   } else {
     document.getElementById('mcli-titulo').textContent='Novo Cliente';
     ['mcli-id','mcli-nome','mcli-end','mcli-resp','mcli-tel','mcli-obs'].forEach(i=>document.getElementById(i).value='');
     presetDiasCli([1,2,3,4,5]);
     document.getElementById('mcli-qrmodo').value='condominio';
+    document.getElementById('mcli-assin').value='opcional';
+    document.getElementById('mcli-period').value='semanal';
     _areasCli=[]; toggleAreasCli();
   }
   document.getElementById('modal-cli').classList.remove('hidden');
@@ -3810,6 +3851,8 @@ function salvarCli(){
     diasAtend:(function(){var d=[];document.querySelectorAll('#mcli-dias-grid .cli-dia-btn.on').forEach(function(b){d.push(parseInt(b.dataset.dia));});return ordenaDias(d);})()};
   obj.qrModo=document.getElementById('mcli-qrmodo').value;
   obj.areas=(obj.qrModo==='area')?_areasCli.slice():[];
+  obj.assinaturaVisita=document.getElementById('mcli-assin').value;
+  obj.periodicidadeVisita=document.getElementById('mcli-period').value;
   if(!obj.diasAtend.length){ alert('Marque os dias de atendimento no local.'); return; }
   if(obj.qrModo==='area'&&!obj.areas.length){ alert('Cadastre pelo menos uma área, ou mude o QR para "condomínio inteiro".'); return; }
   if(id){ const i=DB.clientes.findIndex(x=>x.id===id); DB.clientes[i]=obj; }
@@ -5462,7 +5505,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v20';
+  b.textContent='MJL Gestão v21';
   document.body.appendChild(b);
 })();
 </script>
