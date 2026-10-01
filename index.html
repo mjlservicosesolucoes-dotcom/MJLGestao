@@ -3563,7 +3563,9 @@ function sincronizar(){
   if(!DB.colaboradores.length){
     fetch(url+'?acao=getColaboradores',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
       if(d?.colaboradores&&d.colaboradores.length&&!DB.colaboradores.length){
-        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo'});});
+        // v23: perfil tambem vem do Sheets. Sem isso, abrir o Gestao num
+        // computador novo rebaixava todo encarregado para colaborador.
+        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo',perfil:c.perfil||'colaborador'});});
         salvarDB();renderDash();
         alert('📥 '+d.colaboradores.length+' colaboradores importados do Sheets para este dispositivo. Confira o cliente/escala de cada um.');
       }
