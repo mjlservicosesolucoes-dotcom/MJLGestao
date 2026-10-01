@@ -3523,6 +3523,11 @@ function sincronizar(){
   if(DB.colaboradores.length){
     const payload={acao:'setColaboradores',colaboradores:DB.colaboradores.map(c=>({
       id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status,
+      // v23: o perfil de acesso ficava de fora desta lista. O campo existia
+      // na tela, salvava neste navegador e NUNCA chegava na planilha — por
+      // isso o App Campo sempre recebia "colaborador" e o botao de
+      // Supervisao nao aparecia para ninguem.
+      perfil:c.perfil||'colaborador',
       clientes:(c.clientesIds&&c.clientesIds.length?c.clientesIds:[c.clienteId]).map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
     }))};
     fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
@@ -5524,7 +5529,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v22';
+  b.textContent='MJL Gestão v23';
   document.body.appendChild(b);
 })();
 </script>
