@@ -290,7 +290,17 @@ tr:hover td{background:var(--brand-light);}
      e empurrava o resto para uma segunda pagina quase em branco. */
   #print-area .rel-titulo{padding:0 0 14px;}
   #print-area .rel-titulo .rel-cliente{font-size:22px;}
-  #print-area .rel-sec{padding:0 0 18px;border:0;}
+  /* v29: o relatorio de um mes curto transbordava uns milimetros e
+     jogava so a tarja de contato para uma segunda folha. Espacamento
+     apertado no papel — na tela continua folgado. */
+  #print-area .rel-sec{padding:0 0 12px;border:0;}
+  #print-area .rel-sec h2{margin:0 0 9px;padding-bottom:6px;}
+  #print-area .rel-texto{margin:8px 0 0;line-height:1.5;}
+  #print-area .rel-dia{margin-bottom:10px;}
+  #print-area .rel-ass{margin-top:20px;page-break-inside:avoid;}
+  #print-area .rel-rod{margin-top:10px;page-break-inside:avoid;}
+  /* o fecho nao se parte: texto, assinaturas e contato saem juntos */
+  #print-area .rel-sec:last-child{page-break-inside:avoid;}
   #print-area .rel-quebra{page-break-before:always;}
   #print-area .rel-dia,#print-area .rel-item{page-break-inside:avoid;}
   #print-area .rel-kpi,#print-area .rel-tab th,#print-area .rel-periodo,#print-area .rel-dia-hdr,#print-area .ri-obs{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -5935,7 +5945,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v28';
+  b.textContent='MJL Gestão v29';
   document.body.appendChild(b);
 })();
 
