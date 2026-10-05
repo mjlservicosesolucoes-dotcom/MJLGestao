@@ -975,6 +975,7 @@ tr:hover td{background:var(--brand-light);}
         <div><label style="font-size:10px;" id="per-num-label">N dias</label><input type="number" id="per-num" value="15" min="1" max="31" style="font-size:13px;"></div>
         <div id="per-inicio-box"><label style="font-size:10px;">1ª vez em</label><input type="date" id="per-inicio" style="font-size:13px;"></div>
         <div id="per-area-box"><label style="font-size:10px;">Área</label><select id="per-area" style="font-size:13px;"></select></div>
+        <div><label style="font-size:10px;">Repetir por área</label><input id="per-areas" placeholder="Andar 1-9" style="font-size:13px;"></div>
         <button class="btn btn-primary btn-sm" onclick="adicionarPeriodica()" style="padding:9px 14px;">+</button>
       </div>
     </div>
@@ -4793,8 +4794,7 @@ function renderTarefasPorDia(){
     var dia = parseInt(sec.dataset.dia);
     var lista = [];
     sec.querySelectorAll('.tarefa-item').forEach(function(ti){
-      var a=ti.dataset.area||'';
-      lista.push(a?{texto:ti.dataset.txt,area:a}:ti.dataset.txt);
+      lista.push(_objTarefa(ti));
     });
     tarefasExistentes[dia] = lista;
   });
@@ -4833,6 +4833,43 @@ function _areasDoCronoAtual(){
   return (c&&c.qrModo==='area'&&c.areas&&c.areas.length)?c.areas.slice():[];
 }
 function _txtTarefa(t){ return (typeof t==='string')?t:((t&&(t.texto||t.tarefa))||''); }
+// ===== v24: AREAS DA TAREFA (Andar 1-9, Hall, Garagem...) =====
+// Escreve-se as areas UMA vez aqui; no App Campo cada area vira uma
+// tarefa propria, com foto e horario separados. MESMA funcao existe
+// no App Campo — se mudar a regra aqui, mudar la tambem.
+function _areasTarefa(t){ return (t&&typeof t==='object'&&t.areas)?String(t.areas):''; }
+function expandirAreas(t){
+  if(!t || typeof t !== 'object') return [];
+  var bruto = t.areas;
+  if(bruto instanceof Array) bruto = bruto.join(',');
+  bruto = String(bruto||'').trim();
+  if(!bruto) return [];
+  var out = [];
+  bruto.split(/[,;\n]+/).forEach(function(parte){
+    parte = parte.trim();
+    if(!parte) return;
+    var m = parte.match(/^(.*?)(\d+)\s*(?:-|a|at\u00e9|\u2013)\s*(\d+)\s*$/i);
+    if(m){
+      var prefixo = m[1].trim();
+      var de = parseInt(m[2],10), ate = parseInt(m[3],10);
+      if(de <= ate && (ate-de) <= 200){
+        for(var n=de;n<=ate;n++) out.push((prefixo?prefixo+' ':'')+n);
+        return;
+      }
+    }
+    out.push(parte);
+  });
+  return out;
+}
+function _previewAreas(inp){
+  var cx = inp.closest('.tarefa-item');
+  if(cx) cx.dataset.areas = inp.value;
+  var lbl = cx ? cx.querySelector('.ti-areas-cont') : null;
+  if(!lbl) return;
+  var n = expandirAreas({areas:inp.value}).length;
+  lbl.textContent = n ? ('\u2192 '+n+' tarefa'+(n>1?'s':'')) : '';
+  lbl.title = n ? expandirAreas({areas:inp.value}).join(' \u00b7 ') : '';
+}
 function _areaTarefa(t){ return (t&&typeof t==='object'&&t.area)?t.area:''; }
 function _selArea(area){
   var areas=_areasDoCronoAtual();
@@ -4842,8 +4879,19 @@ function _selArea(area){
     areas.map(function(a){ return '<option'+(a===area?' selected':'')+'>'+escaparHTML(a)+'</option>'; }).join('')+'</select>';
 }
 function renderTarefaItem(dia, t, idx){
-  var txt=_txtTarefa(t), area=_areaTarefa(t);
-  return '<div class="tarefa-item" data-txt="'+escaparHTML(txt)+'" data-area="'+escaparHTML(area)+'"><span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span><span class="ti-txt" style="flex:1;">'+escaparHTML(txt)+'</span>'+_selArea(area)+'<button class="ti-del" onclick="removerTarefa('+dia+',this)">×</button></div>';
+  var txt=_txtTarefa(t), area=_areaTarefa(t), areas=_areasTarefa(t);
+  var nExp=expandirAreas({areas:areas}).length;
+  return '<div class="tarefa-item" data-txt="'+escaparHTML(txt)+'" data-area="'+escaparHTML(area)+'" data-areas="'+escaparHTML(areas)+'" style="flex-wrap:wrap;">'+
+    '<span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span>'+
+    '<span class="ti-txt" style="flex:1;">'+escaparHTML(txt)+'</span>'+
+    _selArea(area)+
+    '<button class="ti-del" onclick="removerTarefa('+dia+',this)">\u00d7</button>'+
+    '<div style="flex-basis:100%;display:flex;align-items:center;gap:6px;margin:4px 0 0 18px;">'+
+      '<span style="font-size:10.5px;color:var(--text3);white-space:nowrap;">Repetir por \u00e1rea:</span>'+
+      '<input class="ti-areas" value="'+escaparHTML(areas)+'" oninput="_previewAreas(this)" placeholder="Andar 1-9  ou  Hall, Garagem" style="flex:1;min-width:120px;font-size:11px;padding:3px 6px;border-radius:6px;border:1.5px solid var(--border);">'+
+      '<span class="ti-areas-cont" title="'+escaparHTML(expandirAreas({areas:areas}).join(' \u00b7 '))+'" style="font-size:10.5px;font-weight:700;color:var(--brand);white-space:nowrap;">'+(nExp?('\u2192 '+nExp+' tarefa'+(nExp>1?'s':'')):'')+'</span>'+
+    '</div>'+
+  '</div>';
 }
 
 function adicionarTarefa(dia){
@@ -4877,9 +4925,22 @@ function copiarDiaPara(diaOrigem, diaDestino){
   var listaDestino = document.querySelector('.lista-tarefas-'+diaDestino);
   if(!listaOrigem||!listaDestino) return;
   var tarefas = [];
-  listaOrigem.querySelectorAll('.tarefa-item').forEach(function(ti){ var a=ti.dataset.area||''; tarefas.push(a?{texto:ti.dataset.txt,area:a}:ti.dataset.txt); });
+  listaOrigem.querySelectorAll('.tarefa-item').forEach(function(ti){ tarefas.push(_objTarefa(ti)); });
   listaDestino.innerHTML = '';
   tarefas.forEach(function(t,i){ listaDestino.insertAdjacentHTML('beforeend', renderTarefaItem(diaDestino, t, i)); });
+}
+
+// v24: monta o objeto da tarefa a partir da linha na tela. Texto puro
+// continua sendo texto puro — so vira objeto quando tem area ou areas,
+// para nao inchar a planilha sem necessidade.
+function _objTarefa(ti){
+  var a=(ti.dataset.area||'').trim();
+  var ar=((ti.querySelector('.ti-areas')||{}).value||ti.dataset.areas||'').trim();
+  if(!a && !ar) return ti.dataset.txt;
+  var o={texto:ti.dataset.txt};
+  if(a) o.area=a;
+  if(ar) o.areas=ar;
+  return o;
 }
 
 function coletarTarefasDoCrono(){
@@ -4888,8 +4949,7 @@ function coletarTarefasDoCrono(){
     var dia = parseInt(sec.dataset.dia);
     var lista = [];
     sec.querySelectorAll('.tarefa-item').forEach(function(ti){
-      var a=ti.dataset.area||'';
-      lista.push(a?{texto:ti.dataset.txt,area:a}:ti.dataset.txt);
+      lista.push(_objTarefa(ti));
     });
     resultado[dia] = lista;
   });
@@ -4980,10 +5040,13 @@ function adicionarPeriodica(){
   if(tipo==='mensal'){ if(num<1||num>31){ alert('Dia do mês deve ser de 1 a 31.'); return; } }
   else { if(num<1){ alert('Informe a cada quantos dias.'); return; } if(!inicio){ alert('Informe a data da 1ª vez (o sistema conta a partir dela).'); return; } }
   var _pa=(document.getElementById('per-area')||{}).value||'';
+  var _pas=((document.getElementById('per-areas')||{}).value||'').trim();
   var _novo=(tipo==='mensal')?{id:gid(),texto:texto,tipo:'mensal',diaMes:num}:{id:gid(),texto:texto,tipo:'dias',intervalo:num,inicio:inicio};
   if(_pa) _novo.area=_pa;
+  if(_pas) _novo.areas=_pas;
   cronoPeriodicas.push(_novo);
   document.getElementById('per-texto').value='';
+  var _ea=document.getElementById('per-areas'); if(_ea) _ea.value='';
   renderPeriodicas(); document.getElementById('per-texto').focus();
 }
 function removerPeriodica(i){ cronoPeriodicas.splice(i,1); renderPeriodicas(); }
@@ -4996,15 +5059,29 @@ function renderPeriodicas(){
   if(!cronoPeriodicas.length){ el.innerHTML='<div style="font-size:12px;color:var(--text3);">Nenhuma tarefa periódica.</div>'; return; }
   el.innerHTML=cronoPeriodicas.map(function(t,i){
     var prox=proximasPeriodica(t,dias,3).map(function(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }).join(', ');
-    return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.area?' · 📍'+escaparHTML(t.area):'')+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
+    return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.area?' · 📍'+escaparHTML(t.area):'')+(expandirAreas(t).length?' · \U0001F501 '+expandirAreas(t).length+' áreas ('+escaparHTML(expandirAreas(t).slice(0,3).join(', '))+(expandirAreas(t).length>3?'...':'')+')':'')+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
   }).join('');
 }
 function nomeTarefaPorId(itemId){
   var cronos=ler('mjl_cronogramas',[]);
   for(var i=0;i<cronos.length;i++){ var c=cronos[i]; if(!c||!itemId||String(itemId).indexOf(c.id)!==0) continue;
     var resto=String(itemId).slice(c.id.length);
-    var m=resto.match(/^_d(\d)_(\d+)$/); if(m){ var l=(c.tarefasPorDia||{})[m[1]]||[]; return _txtTarefa(l[+m[2]])||''; }
-    var mp=resto.match(/^_p(.+)$/); if(mp){ var t=(c.periodicas||[]).find(function(x){ return x.id===mp[1]; }); return t?t.texto+' ('+descPeriodica(t)+')':''; }
+    // v24: o id agora pode terminar em _a<n> (tarefa repetida por area)
+    var m=resto.match(/^_d(\d)_(\d+)(?:_a(\d+))?$/);
+    if(m){
+      var l=(c.tarefasPorDia||{})[m[1]]||[]; var tt=l[+m[2]];
+      var nome=_txtTarefa(tt)||'';
+      if(m[3]!==undefined){ var ax=expandirAreas(tt); if(ax[+m[3]]) nome+=' — '+ax[+m[3]]; }
+      return nome;
+    }
+    var mp=resto.match(/^_p(.+?)(?:_a(\d+))?$/);
+    if(mp){
+      var t=(c.periodicas||[]).find(function(x){ return x.id===mp[1]; });
+      if(!t) return '';
+      var nm=t.texto+' ('+descPeriodica(t)+')';
+      if(mp[2]!==undefined){ var ap=expandirAreas(t); if(ap[+mp[2]]) nm+=' — '+ap[+mp[2]]; }
+      return nm;
+    }
   }
   return '';
 }
@@ -5388,6 +5465,15 @@ function verCronograma(id){
     html += '<div class="crono-dia-nome">'+DIAS_NOMES[dia].toUpperCase()+'</div>';
     html += '<div class="crono-dia-tarefas">';
     tarefas.forEach(function(t){
+      // v24: tarefa com areas sai no papel uma linha por andar/area,
+      // igual ao que o colaborador ve no celular.
+      var _ax=expandirAreas(t);
+      if(_ax.length){
+        _ax.forEach(function(nomeArea){
+          html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(_txtTarefa(t))+' <span style="color:#7a8a9a;font-size:11px;">— '+escaparHTML(nomeArea)+'</span></span></div>';
+        });
+        return;
+      }
       html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(_txtTarefa(t))+(_areaTarefa(t)?' <span style="color:#7a8a9a;font-size:11px;">— '+escaparHTML(_areaTarefa(t))+'</span>':'')+'</span></div>';
     });
     if(!tarefas.length) html += '<div style="color:var(--text3);font-size:12px;padding:6px 0;">Nenhuma tarefa.</div>';
@@ -5531,7 +5617,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v23';
+  b.textContent='MJL Gestão v24';
   document.body.appendChild(b);
 })();
 </script>
