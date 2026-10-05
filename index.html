@@ -315,6 +315,7 @@ tr:hover td{background:var(--brand-light);}
     <a class="nav-link" data-page="relatorio">
       <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>Relatório do Síndico
     </a>
+    <a class="nav-link" data-page="supervisao"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Supervisão<span id="nav-pend-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px;margin-left:6px;"></span></a>
     <a class="nav-link" data-page="tarefasfeitas"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tarefas Realizadas</a>
     <a class="nav-link" data-page="lembretes"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Lembrete de Ponto</a>
     <a class="nav-link" data-page="configuracoes"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
@@ -546,6 +547,22 @@ tr:hover td{background:var(--brand-light);}
       </div>
       <div id="lem-lista"></div>
     </div>
+    <div class="page" id="page-supervisao">
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-primary btn-sm" onclick="supAba('pendencias')" id="sup-t1">📥 Caixa de entrada</button>
+          <button class="btn btn-ghost btn-sm" onclick="supAba('compras')" id="sup-t2">🛒 Comprar / consertar</button>
+          <button class="btn btn-ghost btn-sm" onclick="supAba('visitas')" id="sup-t3">🔎 Visitas</button>
+          <div style="flex:1;"></div>
+          <select id="sup-local" onchange="renderSupervisao()" style="font-size:13px;padding:7px 10px;border-radius:8px;border:1.5px solid var(--border);"></select>
+          <label style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:5px;cursor:pointer;">
+            <input type="checkbox" id="sup-resolvidas" onchange="renderSupervisao()"> mostrar resolvidas
+          </label>
+        </div>
+      </div>
+      <div id="sup-corpo"></div>
+    </div>
+
     <div class="page" id="page-tarefasfeitas">
       <div class="card" style="margin-bottom:12px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
@@ -3341,7 +3358,7 @@ function imprimirRelatorio(titulo) {
 }
 
 // ===== DB =====
-let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[],cronoFeitos:[]};
+let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[],cronoFeitos:[],visitas:[],pendencias:[]};
 let fotosModalTemp = {};
 
 function salvarDB(){ localStorage.setItem('mjl_gestao_db_v2', JSON.stringify(DB)); }
@@ -3377,7 +3394,7 @@ window.addEventListener('online',checkOnline);
 window.addEventListener('offline',checkOnline);
 
 // ===== NAV =====
-const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',qrcodes:'QR dos Moradores',relatorio:'Relatório do Síndico',tarefasfeitas:'Tarefas Realizadas',lembretes:'Lembrete de Ponto',configuracoes:'Configurações'};
+const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',qrcodes:'QR dos Moradores',relatorio:'Relatório do Síndico',supervisao:'Supervisão',tarefasfeitas:'Tarefas Realizadas',lembretes:'Lembrete de Ponto',configuracoes:'Configurações'};
 const topActions={dashboard:'+ Colaborador',colaboradores:'+ Colaborador',clientes:'+ Cliente',chamados:'+ Chamado',informativos:'+ Informativo'};
 
 function navegar(p){
@@ -3400,6 +3417,7 @@ function navegar(p){
   if(p==='qrcodes')prepararQR();
   if(p==='relatorio')prepararRelatorio();
   if(p==='fotos')renderFotos();
+  if(p==='supervisao')renderSupervisao();
   if(p==='tarefasfeitas')renderTarefasFeitas();
   if(p==='lembretes')renderLembretes();
   if(p==='configuracoes')renderConfig();
@@ -3572,6 +3590,27 @@ function sincronizar(){
       }
     }).catch(()=>{});
   }
+  // v26: visitas e pendencias da supervisao
+  fetch(url+'?acao=getVisitas',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
+    if(d&&d.visitas){ DB.visitas=d.visitas; salvarDB(); if(typeof renderSupervisao==='function'&&document.getElementById('page-supervisao').classList.contains('active')) renderSupervisao(); }
+  }).catch(()=>{});
+  (function(){
+    var _l=new Date(); _l.setDate(_l.getDate()-60);
+    fetch(url+'?acao=getPendencias&desde='+_l.toISOString().slice(0,10),{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
+      if(!d||!d.pendencias) return;
+      // O celular do colaborador tambem mexe nessa lista. Mescla por id:
+      // o que foi resolvido em qualquer ponta continua resolvido.
+      var meu={}; (DB.pendencias||[]).forEach(function(p){ if(p&&p.id) meu[p.id]=p; });
+      DB.pendencias=d.pendencias.map(function(p){
+        var l=meu[p.id];
+        if(l&&l.status!=='aberta'&&p.status==='aberta') return l;
+        return p;
+      });
+      salvarDB();
+      if(typeof supBadge==='function') supBadge();
+      if(typeof renderSupervisao==='function'&&document.getElementById('page-supervisao').classList.contains('active')) renderSupervisao();
+    }).catch(()=>{});
+  })();
   // Busca registros e dados do campo
   fetch(url+'?acao=getRegistros',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(data=>{
     if(data?.registros){ data.registros.forEach(r=>{ if(!DB.registros.find(x=>x.id===r.id)) DB.registros.push(r); }); salvarDB(); renderDash(); }
@@ -5095,6 +5134,208 @@ function renderPeriodicas(){
     return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.area?' · 📍'+escaparHTML(t.area):'')+(expandirAreas(t).length?' · 🔁 '+expandirAreas(t).length+' áreas ('+escaparHTML(expandirAreas(t).slice(0,3).join(', '))+(expandirAreas(t).length>3?'...':'')+')':'')+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
   }).join('');
 }
+// ================================================================
+// v26 — SUPERVISAO: caixa de entrada, lista de compras e visitas
+// Aqui chega o que a supervisao apontou e o que o cliente pediu.
+// Tres regras que a tela tem que respeitar:
+//   1. Pendencia do CLIENTE nasce travada. So vai para o celular do
+//      colaborador depois que a MJL libera — a ordem sai da MJL.
+//   2. Pendencia de EQUIPE e da MJL nao se misturam: material em
+//      falta nao e culpa de quem limpa.
+//   3. Gravacao SEMPRE por id (atualizarPendencia). Nunca reescrever
+//      a lista inteira — o celular do colaborador mexe nela tambem.
+// ================================================================
+let supAbaAtual='pendencias';
+function supAba(a){
+  supAbaAtual=a;
+  ['t1','t2','t3'].forEach(function(t,i){
+    var el=document.getElementById('sup-'+t); if(!el) return;
+    var ativo=(i===0&&a==='pendencias')||(i===1&&a==='compras')||(i===2&&a==='visitas');
+    el.className='btn btn-sm '+(ativo?'btn-primary':'btn-ghost');
+  });
+  renderSupervisao();
+}
+
+function supPend(){ return (DB.pendencias||[]).filter(function(p){ return p&&p.id; }); }
+function supVisitas(){ return (DB.visitas||[]).filter(function(v){ return v&&v.id; }); }
+
+function supLocais(){
+  var s={};
+  supPend().forEach(function(p){ if(p.local) s[p.local]=1; });
+  supVisitas().forEach(function(v){ if(v.local) s[v.local]=1; });
+  (DB.clientes||[]).forEach(function(c){ if(c&&c.nome) s[c.nome]=1; });
+  return Object.keys(s).sort();
+}
+
+function supFiltra(lista){
+  var loc=(document.getElementById('sup-local')||{}).value||'';
+  var verRes=(document.getElementById('sup-resolvidas')||{}).checked;
+  return lista.filter(function(p){
+    if(loc && p.local!==loc) return false;
+    if(!verRes && p.status!=='aberta') return false;
+    return true;
+  });
+}
+
+function _supData(d){ return d?String(d).split('-').reverse().join('/'):''; }
+
+function _supOrigem(p){
+  if(p.origem==='cliente') return '<span style="background:#f5eef8;color:#7b2d8b;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;">CLIENTE'+(p.criadoPorNome?(' · '+escaparHTML(p.criadoPorNome)):'')+'</span>';
+  if(p.origem==='mjl')     return '<span style="background:#eef2f6;color:#5a6a7a;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;">MJL</span>';
+  return '<span style="background:#e8f0f8;color:#1a4f7a;border-radius:8px;padding:1px 7px;font-size:10.5px;font-weight:700;">SUPERVISÃO'+(p.criadoPorNome?(' · '+escaparHTML(p.criadoPorNome)):'')+'</span>';
+}
+
+function _supLinha(p, mostrarBotoes){
+  var travada = (p.origem==='cliente' && p.liberada===false && p.status==='aberta');
+  var resolvida = p.status==='resolvida';
+  var cor = resolvida ? '#1e7e4a' : (travada ? '#7b2d8b' : (p.tipo==='mjl' ? '#e67e22' : '#c0392b'));
+  var h = '<div style="border-left:4px solid '+cor+';background:#fff;border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:10px;">';
+  h += '<div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap;">';
+  h += '<div style="flex:1;min-width:220px;">';
+  h += '<div style="font-weight:700;font-size:14.5px;">'+escaparHTML(p.tarefa||'Pendência')+(p.area?(' — 📍 '+escaparHTML(p.area)):'')+'</div>';
+  h += '<div style="font-size:11.5px;color:var(--text3);margin:3px 0 6px;">📍 '+escaparHTML(p.local||'—')+' · '+_supData(p.data)+(p.hora?(' '+p.hora):'')+' · '+_supOrigem(p)+'</div>';
+  if(p.texto) h += '<div style="font-size:13px;background:#f8fafc;border:1px solid #e6ecf2;border-radius:8px;padding:7px 10px;line-height:1.5;">'+escaparHTML(p.texto)+'</div>';
+  if(resolvida) h += '<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:6px;">✅ Resolvida em '+_supData(p.resolvidoEm)+(p.resolvidoHora?(' às '+p.resolvidoHora):'')+(p.resolvidoPorNome?(' por '+escaparHTML(p.resolvidoPorNome)):'')+'</div>';
+  if(travada) h += '<div style="font-size:12px;color:#7b2d8b;font-weight:700;margin-top:6px;">🔒 Travada — só vai para a equipe depois que você liberar</div>';
+  h += '</div>';
+  if(mostrarBotoes && !resolvida){
+    h += '<div style="display:flex;flex-direction:column;gap:6px;min-width:150px;">';
+    if(travada) h += '<button class="btn btn-green btn-sm" onclick="supLiberar(\''+p.id+'\')">▶ Liberar p/ equipe</button>';
+    if(p.tipo==='mjl') h += '<button class="btn btn-green btn-sm" onclick="supResolver(\''+p.id+'\')">✔ Já resolvi</button>';
+    h += '<button class="btn btn-ghost btn-sm" onclick="supCancelar(\''+p.id+'\')">✖ Cancelar</button>';
+    h += '</div>';
+  }
+  h += '</div></div>';
+  return h;
+}
+
+function renderSupervisao(){
+  var sel=document.getElementById('sup-local');
+  if(sel && !sel.dataset.pronto){
+    var loc=supLocais();
+    sel.innerHTML='<option value="">Todos os locais</option>'+loc.map(function(l){ return '<option>'+escaparHTML(l)+'</option>'; }).join('');
+    sel.dataset.pronto='1';
+  }
+  var el=document.getElementById('sup-corpo'); if(!el) return;
+
+  if(supAbaAtual==='visitas'){
+    var vis=supVisitas().filter(function(v){
+      var loc=(document.getElementById('sup-local')||{}).value||'';
+      return !loc || v.local===loc;
+    }).sort(function(a,b){ return String(b.data||'').localeCompare(String(a.data||'')); });
+    if(!vis.length){ el.innerHTML='<div class="card"><p style="color:var(--text3);">Nenhuma visita registrada ainda.</p></div>'; return; }
+    el.innerHTML=vis.map(function(v){
+      var ruins=(v.itens||[]).filter(function(i){ return i.aval==='refazer'||i.aval==='naofeito'; });
+      var ok=(v.itens||[]).filter(function(i){ return i.aval==='ok'; }).length;
+      var h='<div class="card" style="margin-bottom:12px;">';
+      h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">';
+      h+='<div><div style="font-size:16px;font-weight:800;">📍 '+escaparHTML(v.local||'')+'</div>';
+      h+='<div style="font-size:12px;color:var(--text3);">'+_supData(v.data)+' · '+(v.inicioHora||'')+' às '+(v.fimHora||'—')+' · Supervisão de <strong>'+escaparHTML(v.supervisorNome||'')+'</strong></div></div>';
+      h+='<div style="text-align:right;font-size:12px;">'+
+         '<div style="color:var(--green);font-weight:700;">✓ '+ok+' conferido(s)</div>'+
+         (ruins.length?('<div style="color:var(--red);font-weight:700;">⚠ '+ruins.length+' apontamento(s)</div>'):'')+
+         ((v.status==='aberta')?'<div style="color:var(--yellow);font-weight:700;">em andamento</div>':'')+
+         '</div></div>';
+      if(v.inicioMaps) h+='<div style="margin-top:6px;"><a href="'+v.inicioMaps+'" target="_blank" style="font-size:12px;color:var(--brand);">📍 ver no mapa onde a visita começou</a></div>';
+      if(ruins.length){
+        h+='<div style="margin-top:10px;">'+ruins.map(function(i){
+          return '<div style="font-size:13px;border-left:3px solid var(--red);padding:4px 0 4px 9px;margin-bottom:6px;"><strong>'+escaparHTML(i.tarefa||'')+(i.area?(' — '+escaparHTML(i.area)):'')+'</strong>'+
+            (i.just?('<div style="color:var(--text2);">'+escaparHTML(i.just)+'</div>'):'')+
+            (i.colaborador?('<div style="font-size:11px;color:var(--text3);">registrado por '+escaparHTML(i.colaborador)+'</div>'):'')+'</div>';
+        }).join('')+'</div>';
+      }
+      if(v.relatorio) h+='<div style="margin-top:10px;font-size:13px;background:#f8fafc;border:1px solid #e6ecf2;border-radius:8px;padding:9px 11px;"><strong>Relatório:</strong> '+escaparHTML(v.relatorio)+'</div>';
+      if(v.assinatura&&v.assinatura.nome) h+='<div style="margin-top:8px;font-size:12px;color:var(--text3);">✍️ Recebido por '+escaparHTML(v.assinatura.nome)+(v.assinatura.funcao?(' ('+escaparHTML(v.assinatura.funcao)+')'):'')+'</div>';
+      h+='</div>';
+      return h;
+    }).join('');
+    return;
+  }
+
+  if(supAbaAtual==='compras'){
+    var mjl=supFiltra(supPend().filter(function(p){ return p.tipo==='mjl'; }));
+    if(!mjl.length){ el.innerHTML='<div class="card"><p style="color:var(--text3);">Nada a comprar ou consertar no momento. 🎉</p></div>'; return; }
+    var porLocal={};
+    mjl.forEach(function(p){ var l=p.local||'—'; (porLocal[l]=porLocal[l]||[]).push(p); });
+    var txt=Object.keys(porLocal).sort().map(function(l){
+      return l+':\n'+porLocal[l].map(function(p){ return '  - '+(p.tarefa||'')+(p.texto?(' ('+p.texto+')'):''); }).join('\n');
+    }).join('\n\n');
+    el.innerHTML='<div class="card" style="margin-bottom:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'+
+      '<strong style="font-size:14px;">'+mjl.length+' item(ns) para comprar ou consertar</strong><div style="flex:1;"></div>'+
+      '<button class="btn btn-ghost btn-sm" onclick="supCopiarCompras()">📋 Copiar lista</button>'+
+      '<button class="btn btn-green btn-sm" onclick="supWhatsCompras()">💬 Enviar no WhatsApp</button></div>'+
+      Object.keys(porLocal).sort().map(function(l){
+        return '<div class="card" style="margin-bottom:12px;"><div class="card-title">📍 '+escaparHTML(l)+'</div>'+
+          porLocal[l].map(function(p){ return _supLinha(p,true); }).join('')+'</div>';
+      }).join('');
+    window._supComprasTxt='MJL — comprar / consertar\n\n'+txt;
+    return;
+  }
+
+  // caixa de entrada: pendencias de EQUIPE + as do cliente travadas
+  var eq=supFiltra(supPend().filter(function(p){ return p.tipo!=='mjl'; }));
+  var travadas=eq.filter(function(p){ return p.origem==='cliente'&&p.liberada===false&&p.status==='aberta'; });
+  var resto=eq.filter(function(p){ return travadas.indexOf(p)<0; });
+  var h='';
+  if(travadas.length){
+    h+='<div class="card" style="margin-bottom:14px;border:2px solid #7b2d8b;background:#faf5fd;">'+
+       '<div class="card-title" style="color:#7b2d8b;">🔒 ESPERANDO VOCÊ — '+travadas.length+' pedido(s) do cliente</div>'+
+       '<p style="font-size:12.5px;color:var(--text2);margin-bottom:10px;">Só vai para o celular do colaborador depois que você liberar. Até lá, o cliente não manda direto na equipe.</p>'+
+       travadas.map(function(p){ return _supLinha(p,true); }).join('')+'</div>';
+  }
+  h+='<div class="card">'+
+     '<div class="card-title">📥 Pendências da equipe — '+resto.filter(function(p){return p.status==='aberta';}).length+' aberta(s)</div>'+
+     (resto.length?resto.map(function(p){ return _supLinha(p,true); }).join('')
+      :'<p style="color:var(--text3);font-size:13px;">Nenhuma pendência aberta. 🎉</p>')+
+     '</div>';
+  el.innerHTML=h;
+}
+
+// ---- acoes: sempre por id, nunca lista inteira ----
+function _supGrava(p){
+  DB.pendencias=(DB.pendencias||[]).map(function(x){ return x.id===p.id?p:x; });
+  salvarDB();
+  var url=(DB.config&&DB.config.scriptUrl)||localStorage.getItem('mjl_script_url')||'';
+  if(url) fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({acao:'atualizarPendencia',dados:p})}).catch(function(){});
+  renderSupervisao(); supBadge();
+}
+function supLiberar(id){
+  var p=supPend().find(function(x){ return x.id===id; }); if(!p) return;
+  if(!confirm('Liberar para a equipe?\n\n"'+(p.tarefa||'')+'"\n\nEla vai aparecer no celular do colaborador como pedido da MJL.')) return;
+  p=Object.assign({},p,{liberada:true,liberadaPorNome:'MJL',liberadaEm:new Date().toISOString().slice(0,16).replace('T',' ')});
+  _supGrava(p);
+}
+function supResolver(id){
+  var p=supPend().find(function(x){ return x.id===id; }); if(!p) return;
+  var ag=new Date();
+  p=Object.assign({},p,{status:'resolvida',resolvidoEm:ag.toISOString().slice(0,10),resolvidoHora:ag.toTimeString().slice(0,5),resolvidoPorNome:'MJL'});
+  _supGrava(p);
+}
+function supCancelar(id){
+  var p=supPend().find(function(x){ return x.id===id; }); if(!p) return;
+  var m=prompt('Cancelar esta pendência. Por quê?','');
+  if(m===null) return;
+  p=Object.assign({},p,{status:'cancelada',motivoCancelamento:m,canceladoEm:new Date().toISOString().slice(0,10)});
+  _supGrava(p);
+}
+function supCopiarCompras(){
+  var t=window._supComprasTxt||''; if(!t) return;
+  if(navigator.clipboard) navigator.clipboard.writeText(t).then(function(){ alert('📋 Lista copiada!'); }).catch(function(){ prompt('Copie:',t); });
+  else prompt('Copie:',t);
+}
+function supWhatsCompras(){
+  var t=window._supComprasTxt||''; if(!t) return;
+  window.open('https://wa.me/?text='+encodeURIComponent(t.slice(0,3000)),'_blank');
+}
+function supBadge(){
+  var n=supPend().filter(function(p){ return p.status==='aberta'; }).length;
+  var b=document.getElementById('nav-pend-badge');
+  if(b){ b.style.display=n?'inline-block':'none'; b.textContent=n; }
+}
+
+window.addEventListener('load',function(){ setTimeout(function(){ if(typeof supBadge==='function') supBadge(); }, 1200); });
+
 function nomeTarefaPorId(itemId){
   var cronos=ler('mjl_cronogramas',[]);
   for(var i=0;i<cronos.length;i++){ var c=cronos[i]; if(!c||!itemId||String(itemId).indexOf(c.id)!==0) continue;
@@ -5650,7 +5891,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v25';
+  b.textContent='MJL Gestão v26';
   document.body.appendChild(b);
 })();
 </script>
