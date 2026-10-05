@@ -975,7 +975,7 @@ tr:hover td{background:var(--brand-light);}
         <div><label style="font-size:10px;" id="per-num-label">N dias</label><input type="number" id="per-num" value="15" min="1" max="31" style="font-size:13px;"></div>
         <div id="per-inicio-box"><label style="font-size:10px;">1ª vez em</label><input type="date" id="per-inicio" style="font-size:13px;"></div>
         <div id="per-area-box"><label style="font-size:10px;">Área</label><select id="per-area" style="font-size:13px;"></select></div>
-        <div><label style="font-size:10px;">Repetir por área</label><input id="per-areas" placeholder="Andar 1-9" style="font-size:13px;"></div>
+        <div><label style="font-size:10px;">Repetir por área</label><input id="per-areas" placeholder="ex: Andar 1-9" style="font-size:13px;" oninput="_previewPerAreas(this)"></div>
         <button class="btn btn-primary btn-sm" onclick="adicionarPeriodica()" style="padding:9px 14px;">+</button>
       </div>
     </div>
@@ -4800,6 +4800,16 @@ function renderTarefasPorDia(){
   });
   if(!diasAtivos.length){ container.innerHTML = ''; return; }
   var html = '<div class="tarefas-por-dia">';
+  // v25: a MJL digitou "Andar 1" em todas as linhas achando que era um
+  // campo por andar. O campo aceita INTERVALO — isso precisa estar
+  // escrito na tela, nao so no placeholder.
+  html += '<div style="background:var(--brand-light);border:1.5px solid #b0cde6;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:12px;line-height:1.7;color:var(--brand);">'+
+    '<strong>\U0001F504 Tarefa que se repete por andar ou por \u00e1rea</strong><br>'+
+    'Escreva a tarefa UMA vez e, no campo <em>Repetir por \u00e1rea</em>, ponha o intervalo:<br>'+
+    '<span style="font-family:monospace;background:#fff;border:1px solid #cfe0ee;border-radius:5px;padding:1px 6px;">Andar 1-9</span> gera 9 tarefas \u2014 Andar 1, Andar 2, \u2026 Andar 9<br>'+
+    '<span style="font-family:monospace;background:#fff;border:1px solid #cfe0ee;border-radius:5px;padding:1px 6px;">Hall, Garagem, Playground</span> gera 3 tarefas<br>'+
+    '<span style="color:var(--text2);">Campo vazio = tarefa normal, uma s\u00f3.</span>'+
+  '</div>';
   diasAtivos.forEach(function(dia, idx){
     var tarefas = tarefasExistentes[dia] || [];
     html += '<div class="dia-tarefas-section" data-dia="'+dia+'" style="margin-bottom:16px;">';
@@ -4861,14 +4871,25 @@ function expandirAreas(t){
   });
   return out;
 }
+// v25: o contador explica. Antes so dizia "1 tarefa" e nao ficava
+// claro que o campo aceita INTERVALO — a MJL digitou "Andar 1" em
+// todas as linhas achando que era um campo por andar.
+function _textoPreviewAreas(valor){
+  var lista = expandirAreas({areas:valor});
+  var n = lista.length;
+  if(!n) return '';
+  if(n === 1){
+    return '<span style="color:var(--text3);font-weight:400;">\u2192 1 tarefa. Para v\u00e1rias de uma vez, escreva um intervalo: <strong style="color:var(--brand);">Andar 1-9</strong></span>';
+  }
+  var amostra = lista.slice(0,3).join(', ') + (n>3 ? (' \u2026 ' + lista[n-1]) : '');
+  return '<span style="color:var(--green);">\u2713 '+n+' tarefas</span> <span style="color:var(--text3);font-weight:400;">'+escaparHTML(amostra)+'</span>';
+}
 function _previewAreas(inp){
   var cx = inp.closest('.tarefa-item');
   if(cx) cx.dataset.areas = inp.value;
   var lbl = cx ? cx.querySelector('.ti-areas-cont') : null;
   if(!lbl) return;
-  var n = expandirAreas({areas:inp.value}).length;
-  lbl.textContent = n ? ('\u2192 '+n+' tarefa'+(n>1?'s':'')) : '';
-  lbl.title = n ? expandirAreas({areas:inp.value}).join(' \u00b7 ') : '';
+  lbl.innerHTML = _textoPreviewAreas(inp.value);
 }
 function _areaTarefa(t){ return (t&&typeof t==='object'&&t.area)?t.area:''; }
 function _selArea(area){
@@ -4886,10 +4907,12 @@ function renderTarefaItem(dia, t, idx){
     '<span class="ti-txt" style="flex:1;">'+escaparHTML(txt)+'</span>'+
     _selArea(area)+
     '<button class="ti-del" onclick="removerTarefa('+dia+',this)">\u00d7</button>'+
-    '<div style="flex-basis:100%;display:flex;align-items:center;gap:6px;margin:4px 0 0 18px;">'+
-      '<span style="font-size:10.5px;color:var(--text3);white-space:nowrap;">Repetir por \u00e1rea:</span>'+
-      '<input class="ti-areas" value="'+escaparHTML(areas)+'" oninput="_previewAreas(this)" placeholder="Andar 1-9  ou  Hall, Garagem" style="flex:1;min-width:120px;font-size:11px;padding:3px 6px;border-radius:6px;border:1.5px solid var(--border);">'+
-      '<span class="ti-areas-cont" title="'+escaparHTML(expandirAreas({areas:areas}).join(' \u00b7 '))+'" style="font-size:10.5px;font-weight:700;color:var(--brand);white-space:nowrap;">'+(nExp?('\u2192 '+nExp+' tarefa'+(nExp>1?'s':'')):'')+'</span>'+
+    '<div style="flex-basis:100%;margin:4px 0 0 18px;">'+
+      '<div style="display:flex;align-items:center;gap:6px;">'+
+        '<span style="font-size:10.5px;color:var(--text3);white-space:nowrap;">Repetir por \u00e1rea:</span>'+
+        '<input class="ti-areas" value="'+escaparHTML(areas)+'" oninput="_previewAreas(this)" placeholder="escreva o intervalo: Andar 1-9" style="flex:1;min-width:150px;font-size:11px;padding:4px 7px;border-radius:6px;border:1.5px solid var(--border);">'+
+      '</div>'+
+      '<div class="ti-areas-cont" style="font-size:10.5px;font-weight:700;margin:3px 0 0 86px;line-height:1.4;">'+_textoPreviewAreas(areas)+'</div>'+
     '</div>'+
   '</div>';
 }
@@ -5031,6 +5054,16 @@ function atualizarCamposPer(){
   document.getElementById('per-inicio-box').style.visibility=mensal?'hidden':'visible';
   var n=document.getElementById('per-num'); if(mensal&&(+n.value>31)) n.value=1;
 }
+function _previewPerAreas(inp){
+  var el=document.getElementById('per-areas-cont');
+  if(!el){
+    el=document.createElement('div'); el.id='per-areas-cont';
+    el.style.cssText='font-size:10.5px;font-weight:700;margin-top:3px;line-height:1.4;';
+    inp.parentNode.appendChild(el);
+  }
+  el.innerHTML=_textoPreviewAreas(inp.value);
+}
+
 function adicionarPeriodica(){
   var texto=document.getElementById('per-texto').value.trim();
   var tipo=document.getElementById('per-tipo').value;
@@ -5617,7 +5650,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v24';
+  b.textContent='MJL Gestão v25';
   document.body.appendChild(b);
 })();
 </script>
