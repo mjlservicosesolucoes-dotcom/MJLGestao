@@ -261,7 +261,23 @@ tr:hover td{background:var(--brand-light);}
     margin-top: 24px;
     padding-top: 8px;
   }
-  .page { display: block !important; }
+  /* v27 — CORRECAO DA IMPRESSAO
+     Estava assim:  .page { display: block !important; }
+     Isso mandava TODAS as paginas do sistema para o papel de uma vez
+     (dashboard, colaboradores, clientes...), e era por isso que o
+     Relatorio do Sindico saia com 6 paginas do site inteiro.
+     Agora so vai ao papel a pagina que esta aberta — e, quando o
+     relatorio monta a area de impressao, SO ela vai. */
+  .page { display: none !important; }
+  .page.active { display: block !important; }
+  body.imprimindo .page,
+  body.imprimindo .page.active { display: none !important; }
+  body.imprimindo #print-area { display: block !important; }
+  /* sem isso, o miolo vazio da tela vira uma pagina em branco na frente */
+  body.imprimindo #main,
+  body.imprimindo #content { min-height:0 !important; height:auto !important; padding:0 !important; margin:0 !important; }
+  body.imprimindo .mjl-print-header,
+  body.imprimindo .mjl-print-footer { display: flex !important; }
   .no-print { display: none !important; }
   #print-area .rel-doc{box-shadow:none;border-radius:0;max-width:none;}
   #print-area .rel-capa{page-break-after:always;min-height:265mm;display:flex;flex-direction:column;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -5462,9 +5478,14 @@ function imprimirQRs(){
   if(!el){ alert('Gere os QR codes primeiro.'); return; }
   var pa=document.getElementById('print-area');
   if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
+  document.body.classList.add('imprimindo');
+  // v27: coloca o documento ENTRE o cabecalho e o rodape da MJL.
+  // Antes ele era anexado ao fim do body e saia depois do rodape.
+  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
+    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
   pa.innerHTML=el.outerHTML;
   window.print();
-  setTimeout(function(){ pa.innerHTML=''; },1500);
+  setTimeout(function(){ pa.innerHTML=''; document.body.classList.remove('imprimindo'); },1500);
 }
 
 // ===================================================================
@@ -5609,9 +5630,14 @@ function imprimirRelatorio(){
   if(!el){ alert('Gere o relatório primeiro.'); return; }
   var pa=document.getElementById('print-area');
   if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
+  document.body.classList.add('imprimindo');
+  // v27: coloca o documento ENTRE o cabecalho e o rodape da MJL.
+  // Antes ele era anexado ao fim do body e saia depois do rodape.
+  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
+    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
   pa.innerHTML=el.outerHTML;
   window.print();
-  setTimeout(function(){ pa.innerHTML=''; },1500);
+  setTimeout(function(){ pa.innerHTML=''; document.body.classList.remove('imprimindo'); },1500);
 }
 
 // ===== COBERTURA (falta / atestado / férias) =====
@@ -5785,9 +5811,14 @@ function imprimirCronograma(){
   if(!el) return;
   var printArea = document.getElementById('print-area');
   if(!printArea){ printArea = document.createElement('div'); printArea.id='print-area'; document.body.appendChild(printArea); }
+  document.body.classList.add('imprimindo');
+  // v27: coloca o documento ENTRE o cabecalho e o rodape da MJL.
+  // Antes ele era anexado ao fim do body e saia depois do rodape.
+  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
+    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
   printArea.innerHTML = el.innerHTML;
   window.print();
-  setTimeout(function(){ printArea.innerHTML=''; }, 1000);
+  setTimeout(function(){ printArea.innerHTML=''; document.body.classList.remove('imprimindo'); }, 1000);
 }
 
 function editarCronograma(id){
@@ -5891,9 +5922,13 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v26';
+  b.textContent='MJL Gestão v27';
   document.body.appendChild(b);
 })();
+
+// v27: rede de seguranca — o navegador avisa quando a janela de
+// impressao fecha, entao a marca nunca fica presa.
+window.addEventListener('afterprint', function(){ document.body.classList.remove('imprimindo'); });
 </script>
 
 <!-- ÁREA DE IMPRESSÃO -->
