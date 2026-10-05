@@ -4804,7 +4804,7 @@ function renderTarefasPorDia(){
   // campo por andar. O campo aceita INTERVALO — isso precisa estar
   // escrito na tela, nao so no placeholder.
   html += '<div style="background:var(--brand-light);border:1.5px solid #b0cde6;border-radius:10px;padding:10px 12px;margin:0 0 12px;font-size:12px;line-height:1.7;color:var(--brand);">'+
-    '<strong>\U0001F504 Tarefa que se repete por andar ou por \u00e1rea</strong><br>'+
+    '<strong>🔄 Tarefa que se repete por andar ou por \u00e1rea</strong><br>'+
     'Escreva a tarefa UMA vez e, no campo <em>Repetir por \u00e1rea</em>, ponha o intervalo:<br>'+
     '<span style="font-family:monospace;background:#fff;border:1px solid #cfe0ee;border-radius:5px;padding:1px 6px;">Andar 1-9</span> gera 9 tarefas \u2014 Andar 1, Andar 2, \u2026 Andar 9<br>'+
     '<span style="font-family:monospace;background:#fff;border:1px solid #cfe0ee;border-radius:5px;padding:1px 6px;">Hall, Garagem, Playground</span> gera 3 tarefas<br>'+
@@ -5092,7 +5092,7 @@ function renderPeriodicas(){
   if(!cronoPeriodicas.length){ el.innerHTML='<div style="font-size:12px;color:var(--text3);">Nenhuma tarefa periódica.</div>'; return; }
   el.innerHTML=cronoPeriodicas.map(function(t,i){
     var prox=proximasPeriodica(t,dias,3).map(function(d){ return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}); }).join(', ');
-    return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.area?' · 📍'+escaparHTML(t.area):'')+(expandirAreas(t).length?' · \U0001F501 '+expandirAreas(t).length+' áreas ('+escaparHTML(expandirAreas(t).slice(0,3).join(', '))+(expandirAreas(t).length>3?'...':'')+')':'')+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
+    return '<div class="tarefa-item" style="align-items:flex-start;"><span style="color:var(--text3);font-size:12px;">'+(i+1)+'.</span><div style="flex:1;"><div class="ti-txt">'+escaparHTML(t.texto)+'</div><div style="font-size:11px;color:var(--text3);">'+descPeriodica(t)+(t.area?' · 📍'+escaparHTML(t.area):'')+(expandirAreas(t).length?' · 🔁 '+expandirAreas(t).length+' áreas ('+escaparHTML(expandirAreas(t).slice(0,3).join(', '))+(expandirAreas(t).length>3?'...':'')+')':'')+(t.inicio?' · desde '+t.inicio.split('-').reverse().join('/'):'')+' · próximas: '+(prox||'—')+'</div></div><button class="ti-del" onclick="removerPeriodica('+i+')">×</button></div>';
   }).join('');
 }
 function nomeTarefaPorId(itemId){
