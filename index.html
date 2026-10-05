@@ -204,8 +204,14 @@ tr:hover td{background:var(--brand-light);}
 .rel-capa-mid{padding:30px 0 24px;}
 .rel-kicker{font-size:11px;letter-spacing:2.6px;opacity:.75;margin-bottom:10px;}
 .rel-cliente{font-size:31px;font-weight:700;margin:0;line-height:1.15;}
-.rel-periodo{display:inline-block;margin-top:14px;background:#1e7e4a;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.6px;padding:6px 15px;border-radius:20px;}
+.rel-periodo{display:inline-block;background:#1e7e4a;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.6px;padding:6px 15px;border-radius:20px;}
 .rel-capa-rod{font-size:10.5px;opacity:.7;padding-top:16px;border-top:1px solid rgba(255,255,255,.18);}
+/* v28 — titulo compacto no lugar da capa de pagina inteira */
+.rel-titulo{padding:24px 40px 18px;border-bottom:2.5px solid #1a4f7a;}
+.rel-titulo .rel-kicker{font-size:10.5px;letter-spacing:2.4px;color:#7a8a9a;opacity:1;margin-bottom:6px;}
+.rel-titulo .rel-cliente{font-size:26px;font-weight:700;color:#1a4f7a;margin:0;line-height:1.15;}
+.rel-titulo-linha{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:10px;}
+.rel-emitido{font-size:11px;color:#8a9aaa;}
 .rel-sec{padding:26px 40px;border-bottom:1px solid #eef2f6;}
 .rel-sec h2{font-size:13px;letter-spacing:1.6px;text-transform:uppercase;color:#1a4f7a;margin:0 0 14px;padding-bottom:8px;border-bottom:2px solid #1a4f7a;font-weight:700;}
 .rel-texto{font-size:13px;line-height:1.65;color:#3d4d5c;margin:12px 0 0;}
@@ -280,7 +286,10 @@ tr:hover td{background:var(--brand-light);}
   body.imprimindo .mjl-print-footer { display: flex !important; }
   .no-print { display: none !important; }
   #print-area .rel-doc{box-shadow:none;border-radius:0;max-width:none;}
-  #print-area .rel-capa{page-break-after:always;min-height:265mm;display:flex;flex-direction:column;justify-content:space-between;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* v28: a capa saiu — era ela que forcava uma folha inteira (265mm)
+     e empurrava o resto para uma segunda pagina quase em branco. */
+  #print-area .rel-titulo{padding:0 0 14px;}
+  #print-area .rel-titulo .rel-cliente{font-size:22px;}
   #print-area .rel-sec{padding:0 0 18px;border:0;}
   #print-area .rel-quebra{page-break-before:always;}
   #print-area .rel-dia,#print-area .rel-item{page-break-inside:avoid;}
@@ -5542,14 +5551,18 @@ function gerarRelatorio(){
 
   var h='<div id="rel-para-imprimir" class="rel-doc">';
 
-  // ---------- CAPA ----------
-  h+='<div class="rel-capa">';
-  h+='<div class="rel-capa-top"><img src="'+LOGO_REL_P+'" alt="MJL"><div><div class="rel-emp">MJL Serviços e Soluções</div><div class="rel-slogan">QUALIDADE E EXCELÊNCIA EM SERVIÇOS</div></div></div>';
-  h+='<div class="rel-capa-mid"><div class="rel-kicker">RELATÓRIO MENSAL DE SERVIÇOS</div>';
+  // ---------- TÍTULO ----------
+  // v28: a capa inteira saiu. Ela gastava uma folha, vazava para uma
+  // segunda quase em branco, e o relatorio de servicos e documento de
+  // prestacao de contas, nao proposta comercial. A marca ja esta no
+  // cabecalho de toda pagina. Agora o documento comeca pelo fato.
+  h+='<div class="rel-titulo">';
+  h+='<div class="rel-kicker">RELATÓRIO MENSAL DE SERVIÇOS</div>';
   h+='<h1 class="rel-cliente">'+escaparHTML(cliente)+'</h1>';
-  h+='<div class="rel-periodo">'+MESES_EXT[mm-1].toUpperCase()+' / '+ano+'</div></div>';
-  h+='<div class="rel-capa-rod">CNPJ 46.636.732/0001-73 · (21) 96838-1313 · mjlservicosesolucoes@gmail.com</div>';
-  h+='</div>';
+  h+='<div class="rel-titulo-linha">';
+  h+='<span class="rel-periodo">'+MESES_EXT[mm-1].toUpperCase()+' / '+ano+'</span>';
+  h+='<span class="rel-emitido">Emitido em '+new Date().toLocaleDateString('pt-BR')+'</span>';
+  h+='</div></div>';
 
   // ---------- RESUMO ----------
   h+='<div class="rel-sec"><h2>Resumo do mês</h2><div class="rel-kpis">';
@@ -5922,7 +5935,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v27';
+  b.textContent='MJL Gestão v28';
   document.body.appendChild(b);
 })();
 
