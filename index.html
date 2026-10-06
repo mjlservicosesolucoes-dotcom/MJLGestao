@@ -3696,6 +3696,16 @@ function sincronizar(){
       return a;
     });
     salvarDB();
+    // v32: avulso que ficou preso neste navegador (cadastrado antes da
+    // correcao da chave da URL, ou salvo sem internet) sobe agora.
+    // Envio por id — nunca a lista inteira.
+    var noServidor={}; d.avulsos.forEach(function(x){ if(x&&x.id) noServidor[x.id]=1; });
+    Object.keys(meu).forEach(function(k){
+      if(noServidor[k]) return;
+      _avEnviar('abrirAvulso',meu[k]);
+      if(DB.avulsos.indexOf(meu[k])<0) DB.avulsos.push(meu[k]);
+    });
+    salvarDB();
     if(typeof avBadge==='function') avBadge();
     if(document.getElementById('page-avulsos').classList.contains('active')) renderAvulsos();
   }).catch(()=>{});
@@ -5836,9 +5846,21 @@ function cancelarAvulso(id){
   renderAvulsos();
 }
 
+// v32 — A CHAVE DA URL. O Gestao guarda a URL do Apps Script em
+// 'mjl_gestao_script_url' (e so nessa). As funcoes novas liam
+// 'mjl_script_url', que e a chave do App CAMPO e aqui nunca existe:
+// a URL vinha vazia, o envio era descartado em silencio e o avulso (e a
+// liberacao de pendencia) ficava preso neste navegador. Uma funcao so,
+// para nao haver duas versoes da verdade.
+function _urlScript(){
+  return localStorage.getItem('mjl_gestao_script_url')
+      || (DB.config&&DB.config.scriptUrl)
+      || localStorage.getItem('mjl_script_url') || '';
+}
+
 // grava SEMPRE por id — nunca a lista inteira
 function _avEnviar(acao,obj){
-  var url=(DB.config&&DB.config.scriptUrl)||localStorage.getItem('mjl_script_url')||'';
+  var url=_urlScript();
   if(!url) return;
   fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({acao:acao,dados:obj})}).catch(function(){});
@@ -5918,7 +5940,7 @@ function imprimirAvulso(id){
 function _supGrava(p){
   DB.pendencias=(DB.pendencias||[]).map(function(x){ return x.id===p.id?p:x; });
   salvarDB();
-  var url=(DB.config&&DB.config.scriptUrl)||localStorage.getItem('mjl_script_url')||'';
+  var url=_urlScript();
   if(url) fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({acao:'atualizarPendencia',dados:p})}).catch(function(){});
   renderSupervisao(); supBadge();
@@ -6548,7 +6570,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v31';
+  b.textContent='MJL Gestão v32';
   document.body.appendChild(b);
 })();
 
