@@ -207,6 +207,10 @@ tr:hover td{background:var(--brand-light);}
 .rel-periodo{display:inline-block;background:#1e7e4a;color:#fff;font-size:12px;font-weight:700;letter-spacing:1.6px;padding:6px 15px;border-radius:20px;}
 .rel-capa-rod{font-size:10.5px;opacity:.7;padding-top:16px;border-top:1px solid rgba(255,255,255,.18);}
 /* v28 — titulo compacto no lugar da capa de pagina inteira */
+/* v30 — fotos do relatorio da visita */
+.vis-item{display:block;padding:10px 0;border-bottom:1px solid #eef2f6;}
+.vis-fotos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;}
+.vis-fotos img{width:150px;height:112px;object-fit:cover;border-radius:7px;border:1px solid #dce7f0;}
 .rel-titulo{padding:24px 40px 18px;border-bottom:2.5px solid #1a4f7a;}
 .rel-titulo .rel-kicker{font-size:10.5px;letter-spacing:2.4px;color:#7a8a9a;opacity:1;margin-bottom:6px;}
 .rel-titulo .rel-cliente{font-size:26px;font-weight:700;color:#1a4f7a;margin:0;line-height:1.15;}
@@ -288,6 +292,10 @@ tr:hover td{background:var(--brand-light);}
   #print-area .rel-doc{box-shadow:none;border-radius:0;max-width:none;}
   /* v28: a capa saiu — era ela que forcava uma folha inteira (265mm)
      e empurrava o resto para uma segunda pagina quase em branco. */
+  #print-area .vis-fotos img{width:120px;height:90px;}
+  #print-area .vis-fotos{page-break-inside:avoid;}
+  #print-area .rel-item{page-break-inside:avoid;}
+  #print-area .vis-item{page-break-inside:avoid;}
   #print-area .rel-titulo{padding:0 0 14px;}
   #print-area .rel-titulo .rel-cliente{font-size:22px;}
   /* v29: o relatorio de um mes curto transbordava uns milimetros e
@@ -5272,6 +5280,12 @@ function renderSupervisao(){
          ((v.status==='aberta')?'<div style="color:var(--yellow);font-weight:700;">em andamento</div>':'')+
          '</div></div>';
       if(v.inicioMaps) h+='<div style="margin-top:6px;"><a href="'+v.inicioMaps+'" target="_blank" style="font-size:12px;color:var(--brand);">📍 ver no mapa onde a visita começou</a></div>';
+      if(v.status!=='aberta'){
+        h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">'+
+          '<button class="btn btn-primary btn-sm" onclick="imprimirVisita(\''+v.id+'\',false)">🖨️ Relatório interno</button>'+
+          '<button class="btn btn-ghost btn-sm" onclick="imprimirVisita(\''+v.id+'\',true)">📄 Versão para o síndico</button>'+
+          '</div>';
+      }
       if(ruins.length){
         h+='<div style="margin-top:10px;">'+ruins.map(function(i){
           return '<div style="font-size:13px;border-left:3px solid var(--red);padding:4px 0 4px 9px;margin-bottom:6px;"><strong>'+escaparHTML(i.tarefa||'')+(i.area?(' — '+escaparHTML(i.area)):'')+'</strong>'+
@@ -5324,6 +5338,215 @@ function renderSupervisao(){
       :'<p style="color:var(--text3);font-size:13px;">Nenhuma pendência aberta. 🎉</p>')+
      '</div>';
   el.innerHTML=h;
+}
+
+// ================================================================
+// v30 — RELATÓRIO DA VISITA EM PDF (passo 5)
+// Duas versoes do mesmo documento:
+//   INTERNO       — tudo, inclusive quem registrou cada tarefa
+//   PARA O SÍNDICO— o mesmo fato, SEM nome de colaborador
+// A decisao e deliberada: o sindico precisa saber o que foi apontado
+// e quando foi resolvido, nao de quem foi a falha. Entregar a um
+// terceiro um historico nominal de falhas da equipe e documento que
+// um dia pode ser usado contra a MJL — e nao acrescenta nada ao que
+// ele precisa saber.
+// ================================================================
+function _vMin(hhmm){ if(!hhmm) return null; var p=String(hhmm).split(':'); return (+p[0]||0)*60+(+p[1]||0); }
+function _vDuracao(v){
+  var a=_vMin(v.inicioHora), b=_vMin(v.fimHora);
+  if(a===null||b===null) return '';
+  var d=b-a; if(d<0) d+=24*60;
+  var hh=Math.floor(d/60), mm=d%60;
+  return hh ? (hh+'h'+(mm?(' '+mm+'min'):'')) : (mm+' min');
+}
+function _vFotos(v, etapa){
+  return (DB.fotos||[]).filter(function(f){
+    if(!f || f.refId!==v.id) return false;
+    return etapa ? (f.etapa===etapa) : true;
+  });
+}
+function _vGaleria(lista){
+  if(!lista.length) return '';
+  return '<div class="vis-fotos">'+lista.map(function(f){
+    return '<img src="'+(f.url||'')+'" alt="foto">';
+  }).join('')+'</div>';
+}
+function _vSelo(txt, cor){
+  return '<span style="display:inline-block;background:'+cor+';color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.6px;padding:3px 9px;border-radius:12px;">'+txt+'</span>';
+}
+
+function imprimirVisita(id, paraSindico){
+  var v=supVisitas().find(function(x){ return x.id===id; });
+  if(!v){ alert('Visita não encontrada. Clique em Sincronizar e tente de novo.'); return; }
+
+  var itens=v.itens||[], extras=v.extras||[], c=v.checklist||{};
+  var ok=itens.filter(function(i){ return i.aval==='ok'; });
+  var ruins=itens.filter(function(i){ return i.aval==='refazer'||i.aval==='naofeito'; });
+  var mat=(v.material||[]).filter(function(m){ return m.situacao==='acabando'||m.situacao==='acabou'; });
+  var eq=(v.equipamentos||[]).filter(function(q){ return q.estado && q.estado!=='ok'; });
+  var dur=_vDuracao(v);
+
+  var h='<div id="vis-para-imprimir" class="rel-doc">';
+
+  // titulo
+  h+='<div class="rel-titulo">';
+  h+='<div class="rel-kicker">RELATÓRIO DE VISITA DE SUPERVISÃO</div>';
+  h+='<h1 class="rel-cliente">'+escaparHTML(v.local||'')+'</h1>';
+  h+='<div class="rel-titulo-linha">';
+  h+='<span class="rel-periodo">'+_supData(v.data)+'</span>';
+  h+='<span class="rel-emitido">'+(v.inicioHora||'')+' às '+(v.fimHora||'—')+(dur?(' · '+dur+' no local'):'')+'</span>';
+  h+='</div></div>';
+
+  // resumo
+  h+='<div class="rel-sec"><h2>Resumo da visita</h2><div class="rel-kpis">';
+  h+='<div class="rel-kpi"><div class="k-num">'+ok.length+'</div><div class="k-lab">itens conferidos</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+(ruins.length+extras.length)+'</div><div class="k-lab">apontamentos</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+mat.length+'</div><div class="k-lab">material a repor</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+eq.length+'</div><div class="k-lab">equipamentos</div></div>';
+  h+='</div>';
+  h+='<p class="rel-texto">Visita de acompanhamento realizada em <strong>'+escaparHTML(v.local||'')+'</strong> no dia '+_supData(v.data)+
+     (paraSindico?'':', por <strong>'+escaparHTML(v.supervisorNome||'')+'</strong>')+
+     '. A equipe de supervisão da MJL conferiu em campo os serviços registrados nos dias anteriores, verificou material, diluição e equipamentos, e registrou abaixo o que encontrou. '+
+     'Entrada e saída foram gravadas com horário e localização.</p>';
+  h+='</div>';
+
+  // identificacao
+  h+='<div class="rel-sec"><h2>Identificação</h2><table class="rel-tab"><tbody>';
+  h+='<tr><td style="width:190px;color:#6b7b8b;">Condomínio</td><td><strong>'+escaparHTML(v.local||'')+'</strong></td></tr>';
+  if(!paraSindico) h+='<tr><td style="color:#6b7b8b;">Supervisão realizada por</td><td>'+escaparHTML(v.supervisorNome||'')+'</td></tr>';
+  h+='<tr><td style="color:#6b7b8b;">Data</td><td>'+_supData(v.data)+'</td></tr>';
+  h+='<tr><td style="color:#6b7b8b;">Entrada no local</td><td>'+(v.inicioHora||'—')+(v.inicioGeo?' · localização registrada':'')+'</td></tr>';
+  h+='<tr><td style="color:#6b7b8b;">Saída do local</td><td>'+(v.fimHora||'—')+(v.fimGeo?' · localização registrada':'')+'</td></tr>';
+  if(dur) h+='<tr><td style="color:#6b7b8b;">Permanência</td><td>'+dur+'</td></tr>';
+  // o link cru do mapa so faz sentido no relatorio interno; para o sindico vira so a confirmacao
+  if(v.inicioMaps && !paraSindico) h+='<tr><td style="color:#6b7b8b;">Mapa da chegada</td><td style="font-size:10.5px;word-break:break-all;color:#4a6478;">'+v.inicioMaps+'</td></tr>';
+  h+='</tbody></table></div>';
+
+  // conferidos
+  if(ok.length){
+    h+='<div class="rel-sec"><h2>Serviços conferidos — conformes</h2>';
+    ok.forEach(function(i){
+      h+='<div class="vis-item" style="padding:6px 0;border-bottom:1px solid #eef2f6;"><span style="color:#1e7e4a;font-weight:700;">✔</span> '+
+        escaparHTML(i.tarefa||'')+(i.area?(' <span style="color:#7a8a9a;">— '+escaparHTML(i.area)+'</span>'):'')+
+        (i.data?(' <span style="color:#9aacba;font-size:11.5px;">· registrado em '+_supData(i.data)+'</span>'):'')+
+        ((!paraSindico&&i.colaborador)?(' <span style="color:#9aacba;font-size:11.5px;">· '+escaparHTML(i.colaborador)+'</span>'):'')+
+        '</div>';
+    });
+    h+='</div>';
+  }
+
+  // apontamentos
+  if(ruins.length||extras.length){
+    h+='<div class="rel-sec"><h2>Apontamentos</h2>';
+    ruins.forEach(function(i){
+      var selo=i.aval==='refazer' ? _vSelo('REFAZER','#e67e22') : _vSelo('NÃO FEITO','#c0392b');
+      h+='<div class="vis-item" style="padding:10px 0;border-bottom:1px solid #eef2f6;">';
+      h+='<div style="margin-bottom:4px;">'+selo+' <strong style="font-size:14px;">'+escaparHTML(i.tarefa||'')+'</strong>'+
+         (i.area?(' <span style="color:#7a8a9a;">— '+escaparHTML(i.area)+'</span>'):'')+'</div>';
+      if(i.just) h+='<div class="ri-obs" style="font-size:13px;background:#fff8e1;border:1px solid #f3e2b0;border-radius:6px;padding:7px 10px;margin:4px 0;">'+escaparHTML(i.just)+'</div>';
+      if(!paraSindico&&i.colaborador) h+='<div style="font-size:11.5px;color:#9aacba;">registrado por '+escaparHTML(i.colaborador)+(i.data?(' em '+_supData(i.data)):'')+'</div>';
+      h+=_vGaleria(_vFotos(v,'item-'+i.refId));
+      h+='</div>';
+    });
+    extras.forEach(function(x){
+      h+='<div class="vis-item" style="padding:10px 0;border-bottom:1px solid #eef2f6;">';
+      h+='<div style="margin-bottom:4px;">'+_vSelo('OBSERVADO NA VISITA','#1a4f7a')+'</div>';
+      h+='<div style="font-size:13.5px;">'+escaparHTML(x.texto||'')+'</div>';
+      h+=_vGaleria(_vFotos(v,'extra-'+x.id));
+      h+='</div>';
+    });
+    h+='</div>';
+  }
+
+  // checklist
+  var temCheck = c.uniforme||c.epi||c.cliente||c.livro;
+  if(temCheck){
+    var rot={ok:'Sim',nao:'Não',na:'Não se aplica',recl:'Houve reclamação'};
+    var rotLivro={ok:'Conferido',nao:'Não conferido',na:'Não tem'};
+    h+='<div class="rel-sec"><h2>Checklist da visita</h2><table class="rel-tab"><tbody>';
+    if(c.uniforme) h+='<tr><td style="width:260px;">Uniforme completo</td><td>'+(rot[c.uniforme]||c.uniforme)+'</td></tr>';
+    if(c.epi)      h+='<tr><td>EPI em uso</td><td>'+(rot[c.epi]||c.epi)+'</td></tr>';
+    if(c.cliente)  h+='<tr><td>Contato com síndico ou zelador</td><td>'+(rot[c.cliente]||c.cliente)+'</td></tr>';
+    if(c.livro)    h+='<tr><td>Livro de ocorrências</td><td>'+(rotLivro[c.livro]||c.livro)+'</td></tr>';
+    h+='</tbody></table></div>';
+  }
+
+  // material e diluicao
+  var d=v.diluicao||{};
+  if((v.material||[]).length || d.feita){
+    h+='<div class="rel-sec"><h2>Material e diluição</h2>';
+    if((v.material||[]).length){
+      var rotM={tem:'Em estoque',acabando:'Acabando',acabou:'Acabou'};
+      h+='<table class="rel-tab"><thead><tr><th>Produto</th><th style="width:150px;">Situação</th></tr></thead><tbody>';
+      (v.material||[]).forEach(function(m){
+        h+='<tr><td>'+escaparHTML(m.nome||'')+'</td><td>'+(rotM[m.situacao]||m.situacao||'')+'</td></tr>';
+      });
+      h+='</tbody></table>';
+    }
+    if(d.feita==='sim'){
+      var rotP={semana:'a semana',quinzena:'a quinzena',mes:'o mês'};
+      h+='<p class="rel-texto">Diluição preparada em campo para '+(rotP[d.periodo]||'o período')+'.'+
+         (d.materiais?(' Produtos deixados prontos: '+escaparHTML(d.materiais)+'.'):'')+'</p>';
+      h+=_vGaleria(_vFotos(v,'diluicao'));
+    } else if(d.feita==='nao'){
+      h+='<p class="rel-texto">Não houve preparo de diluição nesta visita.</p>';
+    }
+    h+='</div>';
+  }
+
+  // equipamentos
+  if((v.equipamentos||[]).length){
+    var rotE={ok:'OK',manut:'Precisa de manutenção',quebrado:'Quebrado',faltando:'Faltando no local'};
+    h+='<div class="rel-sec"><h2>Equipamentos</h2><table class="rel-tab"><thead><tr><th>Equipamento</th><th style="width:200px;">Estado</th></tr></thead><tbody>';
+    (v.equipamentos||[]).forEach(function(q){
+      h+='<tr><td>'+escaparHTML(q.nome||'')+'</td><td>'+(rotE[q.estado]||q.estado||'')+'</td></tr>';
+    });
+    h+='</tbody></table>';
+    eq.forEach(function(q){ h+=_vGaleria(_vFotos(v,'equip-'+q.id)); });
+    h+='</div>';
+  }
+
+  // parecer
+  if(v.relatorio){
+    h+='<div class="rel-sec"><h2>Parecer da supervisão</h2><p class="rel-texto">'+escaparHTML(v.relatorio)+'</p></div>';
+  }
+
+  // registro fotografico
+  var fIni=_vFotos(v,'inicio'), fFim=_vFotos(v,'fim');
+  if(fIni.length||fFim.length){
+    h+='<div class="rel-sec"><h2>Registro fotográfico da visita</h2>';
+    if(fIni.length){ h+='<p class="rel-texto" style="margin-bottom:6px;"><strong>Chegada</strong> — '+(v.inicioHora||'')+'</p>'+_vGaleria(fIni); }
+    if(fFim.length){ h+='<p class="rel-texto" style="margin-bottom:6px;"><strong>Saída</strong> — '+(v.fimHora||'')+'</p>'+_vGaleria(fFim); }
+    h+='</div>';
+  }
+
+  // assinaturas
+  h+='<div class="rel-sec"><h2>Encerramento</h2>';
+  h+='<p class="rel-texto">Todos os registros deste relatório possuem data, hora e responsável identificados no sistema de gestão da MJL. As fotos foram carimbadas com local e horário no momento da captura.</p>';
+  var a=v.assinatura||{};
+  h+='<div class="rel-ass"><div class="rel-ass-l">MJL Serviços e Soluções<br><span>'+(paraSindico?'Supervisão':escaparHTML(v.supervisorNome||'Supervisão'))+'</span></div>'+
+     '<div class="rel-ass-l">'+(a.nome?escaparHTML(a.nome):'Síndico(a) / Administração')+'<br><span>'+(a.funcao?escaparHTML(a.funcao):escaparHTML(v.local||''))+'</span></div></div>';
+  if(a.registrada) h+='<p style="text-align:center;font-size:11px;color:#8a9aaa;margin-top:8px;">Recebimento assinado eletronicamente no aplicativo — Art. 10 da MP 2.200-2/2001</p>';
+  h+='<div class="rel-rod">MJL Serviços e Soluções · CNPJ 46.636.732/0001-73 · (21) 96838-1313 · mjlservicosesolucoes@gmail.com · Qualidade e Excelência em Serviços</div>';
+  h+='</div>';
+
+  h+='</div>';
+
+  var pa=document.getElementById('print-area');
+  if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
+  pa.innerHTML=h;
+  document.body.classList.add('imprimindo');
+  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
+    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
+  // v30: imprimir duas vezes seguidas nao pode deixar a limpeza da primeira
+  // apagar o documento da segunda. Cada impressao ganha um selo proprio.
+  var _selo='p'+Date.now()+'_'+Math.random();
+  pa.dataset.selo=_selo;
+  window.print();
+  setTimeout(function(){
+    if(pa.dataset.selo!==_selo) return;
+    pa.innerHTML=''; document.body.classList.remove('imprimindo');
+  },1500);
 }
 
 // ---- acoes: sempre por id, nunca lista inteira ----
@@ -5503,8 +5726,15 @@ function imprimirQRs(){
   (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
     if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
   pa.innerHTML=el.outerHTML;
+  // v30: imprimir duas vezes seguidas nao pode deixar a limpeza da primeira
+  // apagar o documento da segunda. Cada impressao ganha um selo proprio.
+  var _selo='p'+Date.now()+'_'+Math.random();
+  pa.dataset.selo=_selo;
   window.print();
-  setTimeout(function(){ pa.innerHTML=''; document.body.classList.remove('imprimindo'); },1500);
+  setTimeout(function(){
+    if(pa.dataset.selo!==_selo) return;
+    pa.innerHTML=''; document.body.classList.remove('imprimindo');
+  },1500);
 }
 
 // ===================================================================
@@ -5659,8 +5889,15 @@ function imprimirRelatorio(){
   (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
     if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
   pa.innerHTML=el.outerHTML;
+  // v30: imprimir duas vezes seguidas nao pode deixar a limpeza da primeira
+  // apagar o documento da segunda. Cada impressao ganha um selo proprio.
+  var _selo='p'+Date.now()+'_'+Math.random();
+  pa.dataset.selo=_selo;
   window.print();
-  setTimeout(function(){ pa.innerHTML=''; document.body.classList.remove('imprimindo'); },1500);
+  setTimeout(function(){
+    if(pa.dataset.selo!==_selo) return;
+    pa.innerHTML=''; document.body.classList.remove('imprimindo');
+  },1500);
 }
 
 // ===== COBERTURA (falta / atestado / férias) =====
@@ -5945,7 +6182,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v29';
+  b.textContent='MJL Gestão v30';
   document.body.appendChild(b);
 })();
 
