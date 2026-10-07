@@ -208,6 +208,7 @@ tr:hover td{background:var(--brand-light);}
 .rel-capa-rod{font-size:10.5px;opacity:.7;padding-top:16px;border-top:1px solid rgba(255,255,255,.18);}
 /* v28 — titulo compacto no lugar da capa de pagina inteira */
 /* v31 — antes e depois do servico avulso */
+.av-ponto{font-size:13.5px;font-weight:800;color:#1a4f7a;margin:16px 0 2px;padding-top:8px;border-top:1px solid #eef2f6;break-after:avoid;page-break-after:avoid;}
 .av-par{display:flex;gap:12px;margin:10px 0;break-inside:avoid;page-break-inside:avoid;}
 .av-lado{flex:1;min-width:0;}
 .av-lado img{width:100%;height:180px;object-fit:cover;border-radius:8px;border:1px solid #dce7f0;display:block;}
@@ -5879,6 +5880,71 @@ function _avEnviar(acao,obj){
 // Documento de uma pagina por servico, para mandar ao cliente no dia.
 // Nao leva nome de colaborador: mesma regra do relatorio do sindico.
 // ================================================================
+
+// ================================================================
+// v34 — ANTES E DEPOIS PAREADOS PELO PONTO
+//
+// Ate a v33 o par era pela ORDEM: a 1a foto antes com a 1a depois.
+// Se o colaborador fotografasse hall-garagem-banheiro no antes e
+// garagem-hall-banheiro no depois, o cliente recebia um documento em
+// que o "antes" de um lugar aparecia ao lado do "depois" de outro.
+//
+// O App Campo v25 passou a mandar o PONTO junto de cada foto
+// (f.ponto / f.pontoId). Agora o par vem desse campo, nao da ordem.
+// Avulso antigo, gravado antes da v25, nao tem ponto nenhum — esse
+// continua pareado pela ordem, com um aviso no documento.
+// ================================================================
+function _avParesHTML(a, antes, depois){
+  function chave(f){ return f.pontoId || f.ponto || ''; }
+  var temPonto = antes.concat(depois).some(function(f){ return chave(f); });
+
+  if(!temPonto){
+    var h='<p class="rel-texto" style="font-size:12px;color:#8a9aaa;">Registro anterior \u00e0 identifica\u00e7\u00e3o de pontos \u2014 as fotos aparecem na ordem em que foram tiradas.</p>';
+    var n=Math.max(antes.length,depois.length);
+    for(var k=0;k<n;k++) h+=_avParHTML('', antes[k], depois[k]);
+    return h;
+  }
+
+  // ordem dos pontos: a que o celular mandou; se nao vier, a ordem das fotos
+  var ordem=[], vistos={};
+  (a.pontos||[]).forEach(function(pt){
+    var k=pt.id||pt.nome; if(k&&!vistos[k]){ vistos[k]=pt.nome||''; ordem.push(k); }
+  });
+  antes.concat(depois).forEach(function(f){
+    var k=chave(f); if(k&&vistos[k]===undefined){ vistos[k]=f.ponto||''; ordem.push(k); }
+  });
+
+  var h='';
+  ordem.forEach(function(k){
+    var pa=antes.filter(function(f){ return chave(f)===k; });
+    var pd=depois.filter(function(f){ return chave(f)===k; });
+    if(!pa.length && !pd.length) return;
+    var nome=vistos[k] || (pa[0]&&pa[0].ponto) || (pd[0]&&pd[0].ponto) || '';
+    var n=Math.max(pa.length,pd.length);
+    for(var k2=0;k2<n;k2++) h+=_avParHTML(k2===0?nome:'', pa[k2], pd[k2]);
+  });
+  // foto sem ponto num avulso que tem pontos (aparelho em versao antiga)
+  var soltasA=antes.filter(function(f){ return !chave(f); });
+  var soltasD=depois.filter(function(f){ return !chave(f); });
+  if(soltasA.length||soltasD.length){
+    var n3=Math.max(soltasA.length,soltasD.length);
+    for(var k3=0;k3<n3;k3++) h+=_avParHTML(k3===0?'Outras fotos':'', soltasA[k3], soltasD[k3]);
+  }
+  return h;
+}
+
+function _avParHTML(nome, fa, fd){
+  var h='';
+  if(nome) h+='<div class="av-ponto">📍 '+escaparHTML(nome)+'</div>';
+  h+='<div class="av-par">';
+  h+='<div class="av-lado"><div class="av-tag av-tag-antes">ANTES</div>'+
+     (fa?('<img src="'+_imgFoto(fa,900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
+  h+='<div class="av-lado"><div class="av-tag av-tag-depois">DEPOIS</div>'+
+     (fd?('<img src="'+_imgFoto(fd,900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
+  h+='</div>';
+  return h;
+}
+
 function imprimirAvulso(id){
   var a=avTodos().find(function(x){ return x.id===id; });
   if(!a){ alert('Avulso n\u00e3o encontrado. Clique em Sincronizar e tente de novo.'); return; }
@@ -5908,15 +5974,7 @@ function imprimirAvulso(id){
 
   if(antes.length||depois.length){
     h+='<div class="rel-sec"><h2>Antes e depois</h2>';
-    var n=Math.max(antes.length,depois.length);
-    for(var k=0;k<n;k++){
-      h+='<div class="av-par">';
-      h+='<div class="av-lado"><div class="av-tag av-tag-antes">ANTES</div>'+
-         (antes[k]?('<img src="'+_imgFoto(antes[k],900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
-      h+='<div class="av-lado"><div class="av-tag av-tag-depois">DEPOIS</div>'+
-         (depois[k]?('<img src="'+_imgFoto(depois[k],900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
-      h+='</div>';
-    }
+    h+=_avParesHTML(a,antes,depois);
     h+='</div>';
   }
 
@@ -6643,7 +6701,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v33';
+  b.textContent='MJL Gestão v34';
   document.body.appendChild(b);
 })();
 
