@@ -817,6 +817,15 @@ tr:hover td{background:var(--brand-light);}
   </div>
 </div></div>
 
+<div id="doc-viewer" class="hidden" style="position:fixed;inset:0;z-index:9000;background:#eef2f6;display:flex;flex-direction:column;">
+  <div style="background:#1a4f7a;color:#fff;padding:11px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;box-shadow:0 2px 10px rgba(0,0,0,.18);">
+    <div id="doc-viewer-titulo" style="font-size:15px;font-weight:800;flex:1;min-width:160px;">Relatório</div>
+    <button class="btn btn-sm" onclick="docViewerImprimir()" style="background:#fff;color:#1a4f7a;font-weight:700;">🖨️ Imprimir / Salvar PDF</button>
+    <button class="btn btn-sm" onclick="fecharDocViewer()" style="background:rgba(255,255,255,.18);color:#fff;">✕ Fechar</button>
+  </div>
+  <div id="doc-viewer-corpo" style="flex:1;overflow:auto;padding:22px 16px 60px;"></div>
+</div>
+
 <div id="modal-avulso" class="modal-overlay hidden"><div class="modal">
   <div class="modal-hdr"><h3 id="mav-titulo">Serviço Avulso</h3><button class="modal-cls" onclick="fecharModal('modal-avulso')">×</button></div>
   <div class="modal-body">
@@ -5442,10 +5451,23 @@ function _vFotos(v, etapa){
     return etapa ? (f.etapa===etapa) : true;
   });
 }
+// v33 — A FOTO NO RELATORIO VINHA EM BRANCO.
+// O Apps Script guarda em f.url o endereco da PAGINA do Drive
+// (drive.google.com/file/d/ID/view). Isso abre no navegador, mas nao e
+// uma imagem: dentro de <img src> o quadro fica vazio, sempre.
+// A imagem mesmo e thumbFoto(f.id, tamanho) — que ja era usado na tela
+// de Fotos e nas miniaturas, e por isso ali sempre funcionou.
+// Regra: dentro de <img> SEMPRE thumbFoto(f.id, ...), nunca f.url.
+function _imgFoto(f, px){
+  if(!f) return '';
+  if(f.id) return thumbFoto(f.id, px||800);
+  // foto que ainda nao subiu para o Drive (so existe neste aparelho)
+  return (f.img||f.dataUrl||'');
+}
 function _vGaleria(lista){
   if(!lista.length) return '';
   return '<div class="vis-fotos">'+lista.map(function(f){
-    return '<img src="'+(f.url||'')+'" alt="foto">';
+    return '<img src="'+_imgFoto(f,700)+'" alt="foto" loading="lazy">';
   }).join('')+'</div>';
 }
 function _vSelo(txt, cor){
@@ -5609,21 +5631,7 @@ function imprimirVisita(id, paraSindico){
 
   h+='</div>';
 
-  var pa=document.getElementById('print-area');
-  if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
-  pa.innerHTML=h;
-  document.body.classList.add('imprimindo');
-  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
-    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
-  // v30: imprimir duas vezes seguidas nao pode deixar a limpeza da primeira
-  // apagar o documento da segunda. Cada impressao ganha um selo proprio.
-  var _selo='p'+Date.now()+'_'+Math.random();
-  pa.dataset.selo=_selo;
-  window.print();
-  setTimeout(function(){
-    if(pa.dataset.selo!==_selo) return;
-    pa.innerHTML=''; document.body.classList.remove('imprimindo');
-  },1500);
+  abrirDocViewer('Visita \u2014 '+(v.local||'')+(paraSindico?' (vers\u00e3o do s\u00edndico)':' (interno)'), h);
 }
 
 
@@ -5904,9 +5912,9 @@ function imprimirAvulso(id){
     for(var k=0;k<n;k++){
       h+='<div class="av-par">';
       h+='<div class="av-lado"><div class="av-tag av-tag-antes">ANTES</div>'+
-         (antes[k]?('<img src="'+antes[k].url+'">'):'<div class="av-vazio">sem foto</div>')+'</div>';
+         (antes[k]?('<img src="'+_imgFoto(antes[k],900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
       h+='<div class="av-lado"><div class="av-tag av-tag-depois">DEPOIS</div>'+
-         (depois[k]?('<img src="'+depois[k].url+'">'):'<div class="av-vazio">sem foto</div>')+'</div>';
+         (depois[k]?('<img src="'+_imgFoto(depois[k],900)+'" loading="lazy">'):'<div class="av-vazio">sem foto</div>')+'</div>';
       h+='</div>';
     }
     h+='</div>';
@@ -5921,9 +5929,74 @@ function imprimirAvulso(id){
   h+='<div class="rel-rod">MJL Servi\u00e7os e Solu\u00e7\u00f5es \u00b7 CNPJ 46.636.732/0001-73 \u00b7 (21) 96838-1313 \u00b7 mjlservicosesolucoes@gmail.com \u00b7 Qualidade e Excel\u00eancia em Servi\u00e7os</div>';
   h+='</div></div>';
 
+  abrirDocViewer('Antes e depois \u2014 '+(a.cliente||''), h);
+}
+
+
+// ================================================================
+// v33 — VER O DOCUMENTO ANTES DE IMPRIMIR
+//
+// Ate a v32 todo relatorio chamava window.print() direto: a janela de
+// impressao abria sozinha e nao havia como LER o documento na tela nem
+// esperar as fotos do Drive carregarem — e foto que ainda nao carregou
+// sai em branco no PDF.
+//
+// Agora o documento aparece numa tela de leitura, com dois botoes.
+// A impressao so acontece quando a pessoa pede, e so depois que todas
+// as imagens terminaram de carregar.
+// ================================================================
+function abrirDocViewer(titulo, html){
+  var v=document.getElementById('doc-viewer');
+  document.getElementById('doc-viewer-titulo').textContent=titulo||'Relat\u00f3rio';
+  var corpo=document.getElementById('doc-viewer-corpo');
+  corpo.innerHTML='<div style="max-width:860px;margin:0 auto;background:#fff;border-radius:10px;box-shadow:0 2px 16px rgba(0,0,0,.10);overflow:hidden;">'+html+'</div>'+
+    '<div id="doc-viewer-aviso" style="max-width:860px;margin:12px auto 0;font-size:12.5px;color:#6b7b8b;text-align:center;">\u23F3 carregando as fotos\u2026</div>';
+  v.classList.remove('hidden');
+  document.body.style.overflow='hidden';
+  _docViewerEsperarFotos(corpo);
+}
+
+// Conta quantas imagens faltam. Foto do Drive demora, e imprimir antes
+// de terminarem foi exatamente o que deixou o relatorio em branco.
+function _docViewerEsperarFotos(corpo){
+  var imgs=Array.prototype.slice.call(corpo.querySelectorAll('img'));
+  var aviso=document.getElementById('doc-viewer-aviso');
+  if(!imgs.length){ if(aviso) aviso.innerHTML='&nbsp;'; _docProntoParaImprimir=true; return; }
+  _docProntoParaImprimir=false;
+  var faltam=imgs.length, falharam=0;
+  function conta(erro){
+    if(erro) falharam++;
+    faltam--;
+    if(!aviso) return;
+    if(faltam>0){ aviso.textContent='\u23F3 carregando as fotos\u2026 ('+(imgs.length-faltam)+' de '+imgs.length+')'; return; }
+    _docProntoParaImprimir=true;
+    aviso.innerHTML = falharam
+      ? '\u26A0\uFE0F '+falharam+' foto(s) n\u00e3o carregaram. Confira se voc\u00ea est\u00e1 conectada \u00e0 internet e na conta do Google da MJL \u2014 as fotos ficam no Drive.'
+      : '\u2705 '+imgs.length+' foto(s) carregada(s). Pode imprimir.';
+    if(falharam) aviso.style.color='#c0392b';
+  }
+  imgs.forEach(function(im){
+    if(im.complete){ conta(!im.naturalWidth); return; }
+    im.addEventListener('load',function(){ conta(false); });
+    im.addEventListener('error',function(){ conta(true); });
+  });
+}
+var _docProntoParaImprimir=true;
+
+function fecharDocViewer(){
+  document.getElementById('doc-viewer').classList.add('hidden');
+  document.getElementById('doc-viewer-corpo').innerHTML='';
+  document.body.style.overflow='';
+}
+
+function docViewerImprimir(){
+  if(!_docProntoParaImprimir){
+    if(!confirm('As fotos ainda est\u00e3o carregando. Imprimir assim mesmo pode deixar quadros em branco.\n\nImprimir mesmo assim?')) return;
+  }
+  var html=document.querySelector('#doc-viewer-corpo > div').innerHTML;
   var pa=document.getElementById('print-area');
   if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
-  pa.innerHTML=h;
+  pa.innerHTML=html;
   document.body.classList.add('imprimindo');
   (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
     if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
@@ -6570,7 +6643,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v32';
+  b.textContent='MJL Gestão v33';
   document.body.appendChild(b);
 })();
 
