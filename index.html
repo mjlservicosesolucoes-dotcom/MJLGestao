@@ -372,6 +372,7 @@ tr:hover td{background:var(--brand-light);}
     </a>
     <a class="nav-link" data-page="supervisao"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>Supervisão<span id="nav-pend-badge" style="display:none;background:#c0392b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px;margin-left:6px;"></span></a>
     <a class="nav-link" data-page="avulsos"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4L2 9.4h7.6z"/></svg>Serviços Avulsos<span id="nav-av-badge" style="display:none;background:#7b2d8b;color:#fff;border-radius:10px;font-size:10px;font-weight:700;padding:1px 7px;margin-left:6px;"></span></a>
+    <a class="nav-link" data-page="portal"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>Portal do S\u00edndico</a>
     <a class="nav-link" data-page="tarefasfeitas"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>Tarefas Realizadas</a>
     <a class="nav-link" data-page="lembretes"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>Lembrete de Ponto</a>
     <a class="nav-link" data-page="configuracoes"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Configurações</a>
@@ -633,6 +634,19 @@ tr:hover td{background:var(--brand-light);}
       <div id="av-corpo"></div>
     </div>
 
+    <div class="page" id="page-portal">
+      <div class="card" style="margin-bottom:14px;">
+        <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
+          <div style="flex:1;min-width:240px;">
+            <div style="font-size:15px;font-weight:800;margin-bottom:4px;">🏢 Quem acompanha pelo lado do cliente</div>
+            <p style="font-size:12.5px;color:var(--text2);margin:0;">O acesso \u00e9 <strong>por pessoa, n\u00e3o por pr\u00e9dio</strong>: quem cuida de tr\u00eas condom\u00ednios entra uma vez e v\u00ea os tr\u00eas. Cada pessoa s\u00f3 enxerga o que foi feito nos condom\u00ednios marcados, sem nome de colaborador, sem ponto e sem ouvidoria.</p>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalPortal()">+ Novo acesso</button>
+        </div>
+      </div>
+      <div id="portal-corpo"></div>
+    </div>
+
     <div class="page" id="page-tarefasfeitas">
       <div class="card" style="margin-bottom:12px;">
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
@@ -826,6 +840,34 @@ tr:hover td{background:var(--brand-light);}
   </div>
   <div id="doc-viewer-corpo" style="flex:1;overflow:auto;padding:22px 16px 60px;"></div>
 </div>
+
+<div id="modal-portal" class="modal-overlay hidden"><div class="modal">
+  <div class="modal-hdr"><h3 id="mpo-titulo">Acesso ao Portal</h3><button class="modal-cls" onclick="fecharModal('modal-portal')">\u00d7</button></div>
+  <div class="modal-body">
+    <input type="hidden" id="mpo-id">
+    <div class="form-row">
+      <div class="fg"><label>Nome *</label><input type="text" id="mpo-nome" placeholder="Ex.: Marina Alves"></div>
+      <div class="fg"><label>Papel</label><select id="mpo-papel">
+        <option value="acompanha">Acompanha o dia a dia</option>
+        <option value="sindico">S\u00edndico(a)</option>
+      </select></div>
+    </div>
+    <div class="fg"><label>E-mail *</label><input type="email" id="mpo-email" placeholder="pessoa@email.com">
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 0;">\u00c9 com este e-mail que ela entra. No primeiro acesso ela escolhe a pr\u00f3pria senha de 4 d\u00edgitos \u2014 voc\u00ea nunca v\u00ea essa senha, e se ela esquecer voc\u00ea zera aqui.</p></div>
+    <div class="fg" style="background:var(--bg);border-radius:8px;padding:12px;">
+      <label>🏢 Condom\u00ednios que esta pessoa enxerga *</label>
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 8px;">Marque s\u00f3 os dela. O que n\u00e3o estiver marcado o servidor nem devolve \u2014 n\u00e3o \u00e9 a tela que esconde.</p>
+      <div id="mpo-clientes"></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;">
+      <input type="checkbox" id="mpo-ativo" checked style="width:18px;height:18px;"> Acesso ativo
+    </label>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" onclick="fecharModal('modal-portal')">Cancelar</button>
+    <button class="btn btn-primary" onclick="salvarAcessoPortal()">Salvar</button>
+  </div>
+</div></div>
 
 <div id="modal-avulso" class="modal-overlay hidden"><div class="modal">
   <div class="modal-hdr"><h3 id="mav-titulo">Serviço Avulso</h3><button class="modal-cls" onclick="fecharModal('modal-avulso')">×</button></div>
@@ -3461,7 +3503,7 @@ function imprimirRelatorio(titulo) {
 }
 
 // ===== DB =====
-let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[],cronoFeitos:[],visitas:[],pendencias:[],avulsos:[]};
+let DB = {colaboradores:[],clientes:[],registros:[],chamados:[],informativos:[],ouvidoria:[],assinaturas:[],fotos:[],cronoFeitos:[],visitas:[],pendencias:[],avulsos:[],acessosPortal:[]};
 let fotosModalTemp = {};
 
 function salvarDB(){ localStorage.setItem('mjl_gestao_db_v2', JSON.stringify(DB)); }
@@ -3497,7 +3539,7 @@ window.addEventListener('online',checkOnline);
 window.addEventListener('offline',checkOnline);
 
 // ===== NAV =====
-const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',qrcodes:'QR dos Moradores',relatorio:'Relatório do Síndico',supervisao:'Supervisão',avulsos:'Serviços Avulsos',tarefasfeitas:'Tarefas Realizadas',lembretes:'Lembrete de Ponto',configuracoes:'Configurações'};
+const pageTitles={dashboard:'Dashboard',colaboradores:'Colaboradores',clientes:'Clientes / Locais',registros:'Registros do Dia',chamados:'Chamados',informativos:'Informativos',ouvidoria:'Ouvidoria',fotos:'Fotos',qrcodes:'QR dos Moradores',relatorio:'Relatório do Síndico',supervisao:'Supervisão',avulsos:'Serviços Avulsos',portal:'Portal do Síndico',tarefasfeitas:'Tarefas Realizadas',lembretes:'Lembrete de Ponto',configuracoes:'Configurações'};
 const topActions={dashboard:'+ Colaborador',colaboradores:'+ Colaborador',clientes:'+ Cliente',chamados:'+ Chamado',informativos:'+ Informativo'};
 
 function navegar(p){
@@ -3522,6 +3564,7 @@ function navegar(p){
   if(p==='fotos')renderFotos();
   if(p==='supervisao')renderSupervisao();
   if(p==='avulsos')renderAvulsos();
+  if(p==='portal')renderPortal();
   if(p==='tarefasfeitas')renderTarefasFeitas();
   if(p==='lembretes')renderLembretes();
   if(p==='configuracoes')renderConfig();
@@ -3694,6 +3737,26 @@ function sincronizar(){
       }
     }).catch(()=>{});
   }
+  // v35: acessos do Portal do Sindico. A planilha manda SEM hash e SEM
+  // token — o Gestao nunca conhece a senha de ninguem, nem precisa.
+  fetch(url+'?acao=getAcessosPortal',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
+    if(!d||!d.acessosPortal) return;
+    // Mescla por id. Trocar a lista inteira pela do servidor faria o
+    // acesso recem-cadastrado sumir da tela enquanto o POST (no-cors,
+    // que nao devolve resposta) ainda estava a caminho — e a Marjorie
+    // cadastraria a mesma pessoa de novo. O servidor manda temSenha e
+    // ultimoAcesso, que so ele conhece; o local manda o que acabou de
+    // ser digitado e ainda nao voltou.
+    var doServidor={}; d.acessosPortal.forEach(function(a){ if(a&&a.id) doServidor[a.id]=1; });
+    var sobreviventes=(DB.acessosPortal||[]).filter(function(a){
+      if(!a||!a.id||doServidor[a.id]) return false;
+      // so segura o que nasceu aqui nos ultimos 10 minutos; depois disso,
+      // se o servidor nao conhece, e porque o envio falhou mesmo
+      return (Date.now()-new Date(a.criadoEm||0).getTime()) < 600000;
+    });
+    DB.acessosPortal=d.acessosPortal.concat(sobreviventes); salvarDB();
+    if(document.getElementById('page-portal').classList.contains('active')) renderPortal();
+  }).catch(()=>{});
   // v31: servicos avulsos. Mescla POR ID — o celular do colaborador grava
   // a execucao na mesma lista, e o Gestao nao pode atropelar isso.
   fetch(url+'?acao=getAvulsos',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
@@ -6067,6 +6130,151 @@ function docViewerImprimir(){
   },1500);
 }
 
+
+// ================================================================
+// v35 — PORTAL DO SINDICO: cadastro de quem entra (passo 7)
+//
+// O Portal e um app SEPARADO, com Apps Script proprio. Esta tela so
+// cadastra QUEM entra e EM QUE condominios. A filtragem acontece no
+// servidor do Portal, antes de o dado sair da planilha — nao aqui.
+//
+// A SENHA NUNCA PASSA POR AQUI. O Gestao nao sabe, nao guarda e nao
+// consegue gravar o hash: o Apps Script v10 ignora esse campo mesmo
+// que ele seja enviado. Esqueceu a senha? Zera, e a pessoa escolhe
+// outra no proximo acesso.
+// ================================================================
+var _poClientes=[];
+
+function acessosPortal(){ return (DB.acessosPortal||[]).filter(function(a){ return a&&a.id; }); }
+
+function renderPortal(){
+  var el=document.getElementById('portal-corpo'); if(!el) return;
+  var lista=acessosPortal().sort(function(a,b){ return String(a.nome||'').localeCompare(String(b.nome||'')); });
+  if(!lista.length){
+    el.innerHTML='<div class="card"><p style="color:var(--text3);">Nenhum acesso cadastrado. Clique em <strong>+ Novo acesso</strong> para liberar o s\u00edndico ou a administradora.</p></div>';
+    return;
+  }
+  el.innerHTML=lista.map(function(a){
+    var cls=(a.clientes||[]);
+    var h='<div class="card" style="margin-bottom:12px;'+(a.ativo===false?'opacity:.6;':'')+'">';
+    h+='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">';
+    h+='<div><div style="font-size:16px;font-weight:800;">'+escaparHTML(a.nome||'')+'</div>'+
+       '<div style="font-size:12px;color:var(--text3);">'+escaparHTML(a.email||'')+'</div></div>';
+    h+='<div style="text-align:right;font-size:11px;">';
+    h+='<span style="display:inline-block;background:'+(a.papel==='sindico'?'#1a4f7a':'#7b2d8b')+';color:#fff;font-weight:800;letter-spacing:.4px;padding:2px 9px;border-radius:4px;">'+
+       (a.papel==='sindico'?'S\u00cdNDICO(A)':'ACOMPANHA')+'</span>';
+    if(a.ativo===false) h+='<div style="color:var(--red);font-weight:700;margin-top:4px;">desativado</div>';
+    h+='</div></div>';
+
+    h+='<div style="margin-top:9px;font-size:13px;">🏢 '+(cls.length?cls.map(escaparHTML).join(' \u00b7 '):'<span style="color:var(--red);">nenhum condom\u00ednio marcado</span>')+'</div>';
+
+    h+='<div style="margin-top:7px;font-size:12px;color:var(--text3);">'+
+       (a.temSenha ? ('🔑 senha criada'+(a.ultimoAcesso?(' \u00b7 \u00faltimo acesso em '+_poData(a.ultimoAcesso)):' \u00b7 ainda n\u00e3o entrou'))
+                   : '\u23F3 aguardando o primeiro acesso \u2014 ela escolhe a senha ao entrar')+'</div>';
+
+    h+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;">'+
+       '<button class="btn btn-ghost btn-sm" onclick="abrirModalPortal(\''+a.id+'\')">\u270F\uFE0F Editar</button>';
+    if(a.temSenha) h+='<button class="btn btn-ghost btn-sm" onclick="resetarSenhaPortal(\''+a.id+'\')">🔑 Zerar senha</button>';
+    h+='<button class="btn btn-ghost btn-sm" onclick="copiarConvitePortal(\''+a.id+'\')">💬 Copiar convite</button>';
+    h+='</div></div>';
+    return h;
+  }).join('');
+}
+function _poData(iso){ try{ return new Date(iso).toLocaleDateString('pt-BR'); }catch(e){ return ''; } }
+
+function abrirModalPortal(id){
+  var box=document.getElementById('mpo-clientes');
+  var marcados={};
+  if(id){
+    var a=acessosPortal().find(function(x){ return x.id===id; });
+    if(!a){ alert('Acesso n\u00e3o encontrado.'); return; }
+    (a.clientes||[]).forEach(function(c){ marcados[c]=1; });
+    document.getElementById('mpo-titulo').textContent='Editar acesso';
+    document.getElementById('mpo-id').value=a.id;
+    document.getElementById('mpo-nome').value=a.nome||'';
+    document.getElementById('mpo-email').value=a.email||'';
+    document.getElementById('mpo-papel').value=a.papel||'acompanha';
+    document.getElementById('mpo-ativo').checked=a.ativo!==false;
+  } else {
+    document.getElementById('mpo-titulo').textContent='Novo acesso ao Portal';
+    ['mpo-id','mpo-nome','mpo-email'].forEach(function(i){ document.getElementById(i).value=''; });
+    document.getElementById('mpo-papel').value='acompanha';
+    document.getElementById('mpo-ativo').checked=true;
+  }
+  box.innerHTML=(DB.clientes||[]).map(function(c){
+    return '<label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13.5px;">'+
+      '<input type="checkbox" class="mpo-cli" value="'+escaparHTML(c.nome)+'" '+(marcados[c.nome]?'checked':'')+' style="width:18px;height:18px;"> '+
+      escaparHTML(c.nome)+'</label>';
+  }).join('') || '<p style="font-size:12.5px;color:var(--red);">Cadastre os clientes em Clientes / Locais antes.</p>';
+  document.getElementById('modal-portal').classList.remove('hidden');
+}
+
+function salvarAcessoPortal(){
+  var nome=document.getElementById('mpo-nome').value.trim();
+  var email=document.getElementById('mpo-email').value.trim().toLowerCase();
+  if(!nome){ alert('Informe o nome.'); return; }
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ alert('Informe um e-mail v\u00e1lido \u2014 \u00e9 com ele que a pessoa entra.'); return; }
+  var cls=[];
+  document.querySelectorAll('.mpo-cli:checked').forEach(function(c){ cls.push(c.value); });
+  if(!cls.length){ alert('Marque pelo menos um condom\u00ednio. Sem isso a pessoa entra e n\u00e3o v\u00ea nada.'); return; }
+
+  var id=document.getElementById('mpo-id').value;
+  // e-mail repetido quebraria o login: o servidor acha o primeiro e a
+  // segunda pessoa nunca entra
+  var repetido=acessosPortal().find(function(x){ return x.id!==id && String(x.email||'').toLowerCase()===email; });
+  if(repetido){ alert('J\u00e1 existe um acesso com este e-mail: '+repetido.nome+'.\n\nCada pessoa tem um e-mail s\u00f3. Se ela cuida de mais condom\u00ednios, edite o acesso dela e marque os outros pr\u00e9dios.'); return; }
+
+  var antigo=id?acessosPortal().find(function(x){ return x.id===id; }):null;
+  var obj={
+    id:id||gid(), nome:nome, email:email,
+    papel:document.getElementById('mpo-papel').value,
+    clientes:cls,
+    ativo:document.getElementById('mpo-ativo').checked,
+    criadoEm:(antigo&&antigo.criadoEm)?antigo.criadoEm:new Date().toISOString()
+  };
+  if(antigo){ obj.temSenha=antigo.temSenha; obj.ultimoAcesso=antigo.ultimoAcesso; }
+
+  DB.acessosPortal=(DB.acessosPortal||[]).filter(function(x){ return x.id!==obj.id; });
+  DB.acessosPortal.push(obj);
+  salvarDB();
+  _poEnviar('salvarAcessoPortal',obj);
+  fecharModal('modal-portal');
+  renderPortal();
+}
+
+function resetarSenhaPortal(id){
+  var a=acessosPortal().find(function(x){ return x.id===id; });
+  if(!a) return;
+  if(!confirm('Zerar a senha de '+a.nome+'?\n\nEla vai precisar escolher uma senha nova no pr\u00f3ximo acesso. Ningu\u00e9m, nem voc\u00ea, consegue VER a senha atual \u2014 s\u00f3 zerar.')) return;
+  a.temSenha=false;
+  DB.acessosPortal=(DB.acessosPortal||[]).map(function(x){ return x.id===a.id?a:x; });
+  salvarDB();
+  _poEnviar('resetarSenhaPortal',{id:a.id});
+  renderPortal();
+  alert('Senha zerada. Avise '+a.nome+' que no pr\u00f3ximo acesso ela escolhe uma nova.');
+}
+
+function copiarConvitePortal(id){
+  var a=acessosPortal().find(function(x){ return x.id===id; });
+  if(!a) return;
+  var txt='Ol\u00e1, '+a.nome+'! A MJL Servi\u00e7os e Solu\u00e7\u00f5es preparou um portal onde voc\u00ea acompanha, em tempo real, o que foi feito no '+
+    ((a.clientes||[]).length>1?'seus condom\u00ednios':'seu condom\u00ednio')+', com foto, data e hora.\n\n'+
+    'Acesse: https://mjlservicosesolucoes-dotcom.github.io/MJLPortal\n\n'+
+    'Entre com o seu e-mail ('+a.email+') e escolha uma senha de 4 n\u00fameros no primeiro acesso \u2014 ela fica sendo a sua.\n\n'+
+    'Salve na tela inicial do celular (iPhone: Compartilhar \u2192 Adicionar \u00e0 Tela de In\u00edcio | Android: tr\u00eas pontinhos \u2192 Adicionar \u00e0 tela inicial).\n\n'+
+    'Qualquer d\u00favida: Marjorie (21) 96838-1313.';
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(function(){ alert('Convite copiado! \u00c9 s\u00f3 colar no WhatsApp.'); },function(){ prompt('Copie o texto:',txt); });
+  } else prompt('Copie o texto:',txt);
+}
+
+function _poEnviar(acao,obj){
+  var url=_urlScript();
+  if(!url) return;
+  fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({acao:acao,dados:obj})}).catch(function(){});
+}
+
 // ---- acoes: sempre por id, nunca lista inteira ----
 function _supGrava(p){
   DB.pendencias=(DB.pendencias||[]).map(function(x){ return x.id===p.id?p:x; });
@@ -6701,7 +6909,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v34';
+  b.textContent='MJL Gestão v35';
   document.body.appendChild(b);
 })();
 
