@@ -883,6 +883,18 @@ tr:hover td{background:var(--brand-light);}
       <p style="font-size:11px;color:var(--text3);margin:4px 0 8px;">Marque só os dela. O que não estiver marcado o servidor nem devolve — não é a tela que esconde.</p>
       <div id="mpo-clientes"></div>
     </div>
+    <div class="fg"><label>✉️ Resumo por e-mail</label>
+      <select id="mpo-resumo">
+        <option value="">Pelo papel (síndico recebe mensal, acompanha não recebe)</option>
+        <option value="semanal">Toda semana, na segunda</option>
+        <option value="mensal">Todo mês, no dia 1</option>
+        <option value="nao">Não enviar</option>
+      </select>
+      <p style="font-size:11px;color:var(--text3);margin:4px 0 0;">
+        O e-mail traz os números do período e o link do Portal — sem nome de colaborador, como tudo que vai para o cliente.
+        Quem acompanha todo dia normalmente não precisa; quem recebe o resultado no final, sim.
+      </p>
+    </div>
     <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13.5px;">
       <input type="checkbox" id="mpo-ativo" checked style="width:18px;height:18px;"> Acesso ativo
     </label>
@@ -3704,14 +3716,70 @@ function renderFotos(){
       </div>
     </div>`).join('')+(l.length>200?'<p style="color:var(--text3);grid-column:1/-1;">Mostrando as 200 mais recentes — use os filtros para refinar.</p>':'');
 }
+
+// ================================================================
+// v40 — LISTA MENOR NÃO É LISTA CERTA
+//
+// Três abas são publicadas como LISTA INTEIRA: Colaboradores, Clientes
+// e Cronogramas. A proteção que existia só recusava lista VAZIA. Mas o
+// estrago grande não é o zero — é o "menos do que tinha": um navegador
+// novo, os dados do site limpos, outro perfil do Chrome, e esse
+// aparelho publica a lista pela metade por cima da completa, sem
+// ninguém ficar sabendo.
+//
+// Agora, antes de publicar, o app PERGUNTA À PLANILHA quantos existem
+// lá. Se o que está aqui for menor, ele para e avisa, em vez de
+// sobrescrever. É a irmã da lição antiga: campo ausente não é lista
+// vazia; lista menor não é lista certa.
+//
+// O aviso aparece UMA vez por lista por sessão — senão vira barulho a
+// cada Sincronizar e a pessoa aprende a ignorar, que é pior que não ter.
+// ================================================================
+var _jaAvisei={};
+
+function publicarLista(url, acao, chave, lista, rotulo, montar){
+  if(!url || !lista || !lista.length) return;   // vazio continua barrado
+  var enviar=function(){
+    var corpo={acao:acao};
+    corpo[chave]= montar ? montar() : lista;
+    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(corpo)}).catch(function(){});
+  };
+  var rotaGet={colaboradores:'getColaboradores',clientes:'getClientes',cronogramas:'getCronogramas'}[chave];
+  if(!rotaGet){ enviar(); return; }
+
+  fetch(url+'?acao='+rotaGet,{redirect:'follow',headers:{'Accept':'application/json'}})
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      var naPlanilha=(d && d[chave] && d[chave].length) ? d[chave].length : 0;
+      if(naPlanilha > lista.length){
+        if(!_jaAvisei[chave]){
+          _jaAvisei[chave]=true;
+          alert('\u26A0\uFE0F NÃO publiquei '+rotulo+' para a planilha.\n\n'+
+            'Aqui neste navegador há '+lista.length+', e na planilha há '+naPlanilha+'.\n\n'+
+            'Publicar agora apagaria os que faltam aqui. Isso costuma acontecer quando o '+
+            'Gestão é aberto num computador novo, noutro perfil do Chrome, ou depois de limpar os dados do site.\n\n'+
+            'O que fazer: use o computador onde a lista está completa. Se esta aqui é a certa e você '+
+            'apagou de propósito, fale comigo que eu libero a publicação.');
+        }
+        return;   // NÃO publica
+      }
+      enviar();
+    })
+    .catch(function(){
+      // sem resposta da planilha, o seguro é não publicar lista inteira
+    });
+}
+
 function sincronizar(){
   const url=localStorage.getItem('mjl_gestao_script_url');
   if(!url||!navigator.onLine) return;
   // PROTEÇÃO: nunca publica lista VAZIA — um dispositivo novo/limpo apagaria
   // do Sheets todos os colaboradores (e os logins do App Campo), informativos
   // e chamados. Só envia quando há dados locais.
-  if(DB.colaboradores.length){
-    const payload={acao:'setColaboradores',colaboradores:DB.colaboradores.map(c=>({
+  // v40: passa pela conferência de tamanho antes de publicar
+  publicarLista(url,'setColaboradores','colaboradores',DB.colaboradores,'os colaboradores',function(){
+    return DB.colaboradores.map(c=>({
       id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status,
       // v23: o perfil de acesso ficava de fora desta lista. O campo existia
       // na tela, salvava neste navegador e NUNCA chegava na planilha — por
@@ -3719,18 +3787,14 @@ function sincronizar(){
       // Supervisao nao aparecia para ninguem.
       perfil:c.perfil||'colaborador',
       clientes:(c.clientesIds&&c.clientesIds.length?c.clientesIds:[c.clienteId]).map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
-    }))};
-    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)}).catch(()=>{});
-  }
+    }));
+  });
   // v22: o cadastro de Clientes/Locais passa a ir para a planilha.
   // Ate a v21 ele existia SO neste navegador — endereco, dias de
   // atendimento, areas do QR, assinatura e periodicidade da visita
   // sumiriam ao limpar os dados do site ou trocar de maquina.
   // Mesma protecao dos colaboradores: nunca publica lista vazia.
-  if(DB.clientes.length){
-    const pcli={acao:'setClientes',clientes:DB.clientes};
-    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},body:JSON.stringify(pcli)}).catch(()=>{});
-  }
+  publicarLista(url,'setClientes','clientes',DB.clientes,'os clientes / locais');
   // Dispositivo novo/limpo: importa os clientes do Sheets em vez de ficar vazio
   if(!DB.clientes.length){
     fetch(url+'?acao=getClientes',{redirect:'follow',headers:{'Accept':'application/json'}}).then(function(r){return r.json();}).then(d=>{
@@ -6198,6 +6262,11 @@ function renderPortal(){
 
     h+='<div style="margin-top:9px;font-size:13px;">🏢 '+(cls.length?cls.map(escaparHTML).join(' \u00b7 '):'<span style="color:var(--red);">nenhum condom\u00ednio marcado</span>')+'</div>';
 
+    var _r=a.resumo||((a.papel==='sindico')?'mensal':'nao');
+    var _rot={semanal:'✉️ recebe resumo toda semana',mensal:'✉️ recebe resumo todo mês',nao:'✉️ não recebe resumo por e-mail'}[_r];
+    h+='<div style="margin-top:6px;font-size:12px;color:var(--text3);">'+_rot+
+       (a.ultimoResumo?(' · último em '+_poData(a.ultimoResumo)):'')+'</div>';
+
     h+='<div style="margin-top:7px;font-size:12px;color:var(--text3);">'+
        (a.temSenha ? ('🔑 senha criada'+(a.ultimoAcesso?(' \u00b7 \u00faltimo acesso em '+_poData(a.ultimoAcesso)):' \u00b7 ainda n\u00e3o entrou'))
                    : '\u23F3 aguardando o primeiro acesso \u2014 ela escolhe a senha ao entrar')+'</div>';
@@ -6224,11 +6293,13 @@ function abrirModalPortal(id){
     document.getElementById('mpo-nome').value=a.nome||'';
     document.getElementById('mpo-email').value=a.email||'';
     document.getElementById('mpo-papel').value=a.papel||'acompanha';
+    document.getElementById('mpo-resumo').value=a.resumo||'';
     document.getElementById('mpo-ativo').checked=a.ativo!==false;
   } else {
     document.getElementById('mpo-titulo').textContent='Novo acesso ao Portal';
     ['mpo-id','mpo-nome','mpo-email'].forEach(function(i){ document.getElementById(i).value=''; });
     document.getElementById('mpo-papel').value='acompanha';
+    document.getElementById('mpo-resumo').value='';
     document.getElementById('mpo-ativo').checked=true;
   }
   box.innerHTML=(DB.clientes||[]).map(function(c){
@@ -6258,6 +6329,7 @@ function salvarAcessoPortal(){
   var obj={
     id:id||gid(), nome:nome, email:email,
     papel:document.getElementById('mpo-papel').value,
+    resumo:document.getElementById('mpo-resumo').value,
     clientes:cls,
     ativo:document.getElementById('mpo-ativo').checked,
     criadoEm:(antigo&&antigo.criadoEm)?antigo.criadoEm:new Date().toISOString()
@@ -6362,15 +6434,30 @@ function _areasDoCronograma(cr){
   return out;
 }
 
-// Devolve {ids:[], nomes:[], motivo:''} ou null
+// v39 — O BLOCO MANDA MAIS QUE O ANDAR.
+// O primeiro teste em produção mostrou o erro: um pedido em
+// "Bloco 2 andar 2" foi casado com o cronograma do BLOCO 1, porque lá
+// as áreas estão escritas "Andar 1-12", sem o prefixo do bloco, e
+// "bloco 2 andar 2" contém "andar 2". Mandar o pedido do Bloco 2 para
+// quem cuida do Bloco 1 é exatamente o que este módulo existe para
+// evitar — e a tela parecia certa.
+//
+// Agora, se o pedido disser um bloco/torre e o cronograma disser
+// outro, o casamento é RECUSADO, por mais que o resto combine.
+function _bloco(t){
+  var n=_normArea(t);
+  var m=n.match(/\b(?:bloco|bl|torre|tr)\s*0*(\d{1,2})\b/);
+  return m?m[1]:'';
+}
+
+// Devolve {ids, nomes, cronograma, porque} ou {ambiguo:true, ...} ou null
 function sugerirResponsavel(p){
   if(!p || !p.local) return null;
   var area=_normArea(p.area);
   var texto=_normArea(p.texto);
-  // v37.1: os cronogramas NAO ficam no DB — vivem na chave propria
-  // 'mjl_cronogramas'. Lendo DB.cronogramas a lista vinha sempre vazia
-  // e a sugestao nunca aparecia. O teste pegou: a area certa nao casava
-  // com ninguem, e so o nome do posto no texto funcionava.
+  var blocoPedido=_bloco(p.area)||_bloco(p.texto);
+
+  // os cronogramas NAO ficam no DB — vivem na chave 'mjl_cronogramas'
   var cronos=(ler('mjl_cronogramas',[])||[]).filter(function(cr){
     return cr && cr.ativo!==false && cr.cliente
       && String(cr.cliente).toLowerCase()===String(p.local).toLowerCase()
@@ -6378,27 +6465,44 @@ function sugerirResponsavel(p){
   });
   if(!cronos.length) return null;
 
-  var melhor=null;
+  var achados=[];
   cronos.forEach(function(cr){
+    var areasCr=_areasDoCronograma(cr);
+    var blocoCr=_bloco(cr.nome);
+    if(!blocoCr){ for(var i=0;i<areasCr.length && !blocoCr;i++) blocoCr=_bloco(areasCr[i]); }
+
+    // CONFLITO DE BLOCO: recusa antes de qualquer outra comparação
+    if(blocoPedido && blocoCr && blocoPedido!==blocoCr) return;
+
     var achou='';
-    // 1) a área do pedido bate com uma área do cronograma
     if(area){
-      _areasDoCronograma(cr).forEach(function(a){
+      areasCr.forEach(function(a){
         var na=_normArea(a);
         if(!na||achou) return;
         if(na===area || area.indexOf(na)>=0 || na.indexOf(area)>=0) achou='area:'+a;
       });
     }
-    // 2) o nome do posto aparece na área ou no texto do pedido
-    //    ("Living Choice — Bloco 1" com um pedido no "Bl 1, 5 andar")
     if(!achou){
       var nome=_normArea(cr.nome).replace(_normArea(p.local),'').trim();
       if(nome && nome.length>2 && ((area&&area.indexOf(nome)>=0)||(texto&&texto.indexOf(nome)>=0))) achou='posto:'+cr.nome;
     }
-    if(achou && !melhor) melhor={cr:cr,porque:achou};
-  });
-  if(!melhor) return null;
+    // o bloco bater sozinho ja vale, quando o pedido diz o bloco
+    if(!achou && blocoPedido && blocoCr && blocoPedido===blocoCr) achou='bloco:'+cr.nome;
 
+    if(achou) achados.push({cr:cr,porque:achou});
+  });
+
+  if(!achados.length) return null;
+
+  // Mais de um posto cobre essa area: melhor nao sugerir do que sugerir
+  // o errado com cara de certeza. Quem decide continua sendo a MJL.
+  var distintos={};
+  achados.forEach(function(a){ distintos[a.cr.id]=1; });
+  if(Object.keys(distintos).length>1){
+    return {ambiguo:true, cronogramas:achados.map(function(a){ return a.cr.nome; })};
+  }
+
+  var melhor=achados[0];
   var ids=melhor.cr.colabsIds.filter(function(i){
     return (DB.colaboradores||[]).some(function(c){ return c.id===i && (c.status||'ativo')==='ativo'; });
   });
@@ -6431,18 +6535,37 @@ function supLiberar(id){
   });
 
   var sug=sugerirResponsavel(p);
+
+  // v39: quem está no cronograma daquele posto entra na lista mesmo que
+  // o cadastro aponte outro condomínio. O cronograma é o sinal mais
+  // forte — e antes a sugestão apontava alguém que o campo nem oferecia.
+  var extras=[];
+  if(sug && sug.ids){
+    sug.ids.forEach(function(i){
+      if(doLocal.some(function(c){ return c.id===i; })) return;
+      var c=(DB.colaboradores||[]).find(function(x){ return x.id===i; });
+      if(c) extras.push(c);
+    });
+  }
   var sel=document.getElementById('mlib-colab');
   sel.innerHTML='<option value="">Toda a equipe do local</option>'+
-    doLocal.map(function(c){ return '<option value="'+c.id+'">'+escaparHTML(c.nome)+'</option>'; }).join('');
-  if(sug && sug.ids.length && doLocal.some(function(c){ return c.id===sug.ids[0]; })) sel.value=sug.ids[0];
+    doLocal.map(function(c){ return '<option value="'+c.id+'">'+escaparHTML(c.nome)+'</option>'; }).join('')+
+    extras.map(function(c){ return '<option value="'+c.id+'">'+escaparHTML(c.nome)+' (do cronograma)</option>'; }).join('');
+  if(sug && sug.ids && sug.ids.length) sel.value=sug.ids[0];
 
   var cx=document.getElementById('mlib-sugestao');
-  if(sug){
+  if(sug && sug.ambiguo){
+    cx.innerHTML='<div style="background:#fff8e1;border:1.5px solid #f3e2b0;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#7a5c14;line-height:1.5;">'+
+      'Mais de um posto cobre essa área: <strong>'+escaparHTML(sug.cronogramas.join(', '))+'</strong>. '+
+      'Prefiro não sugerir a sugerir errado — escolha você.</div>';
+  } else if(sug){
     var tipo=sug.porque.split(':')[0], det=sug.porque.split(':').slice(1).join(':');
     cx.innerHTML='<div style="background:#f0f8f3;border:1.5px solid #bfe0cd;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#1e7e4a;line-height:1.5;">'+
       '<strong>Sugestão: '+escaparHTML(sug.nomes.join(', '))+'</strong><br>'+
       (tipo==='area'
         ? ('A área <strong>'+escaparHTML(det)+'</strong> está no cronograma "'+escaparHTML(sug.cronograma)+'".')
+        : tipo==='bloco'
+        ? ('O pedido é no bloco do cronograma "'+escaparHTML(sug.cronograma)+'".')
         : ('O pedido menciona <strong>'+escaparHTML(det)+'</strong>.'))+
       ' Confira e troque se não for.</div>';
   } else {
@@ -6580,8 +6703,8 @@ function salvarCronograma(){
   // Enviar para Sheets
   var url = localStorage.getItem('mjl_gestao_script_url');
   if(url&&navigator.onLine){
-    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({acao:'setCronogramas',cronogramas:cronos})}).catch(function(){});
+    // v40: confere o tamanho na planilha antes de publicar a lista inteira
+    publicarLista(url,'setCronogramas','cronogramas',cronos,'os cronogramas');
   }
   fecharModal('modal-crono');
   renderListaCronogramas();
@@ -6873,8 +6996,8 @@ function salvarCoberturas(){
   salvar('mjl_cronogramas',cronos);
   var url=localStorage.getItem('mjl_gestao_script_url');
   if(url&&navigator.onLine){
-    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({acao:'setCronogramas',cronogramas:cronos})}).catch(function(){});
+    // v40: confere o tamanho na planilha antes de publicar a lista inteira
+    publicarLista(url,'setCronogramas','cronogramas',cronos,'os cronogramas');
   }
   fecharModal('modal-cobertura'); renderListaCronogramas();
   alert('✅ Cobertura salva! Já aparece no App Campo de quem vai cobrir.');
@@ -7060,8 +7183,8 @@ function excluirCronograma(id){
   salvar('mjl_cronogramas', cronos);
   var url = localStorage.getItem('mjl_gestao_script_url');
   if(url&&navigator.onLine){
-    fetch(url,{method:'POST',mode:'no-cors',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({acao:'setCronogramas',cronogramas:cronos})}).catch(function(){});
+    // v40: confere o tamanho na planilha antes de publicar a lista inteira
+    publicarLista(url,'setCronogramas','cronogramas',cronos,'os cronogramas');
   }
   fecharModal('modal-ver-crono');
   renderListaCronogramas();
@@ -7110,7 +7233,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v37.1';
+  b.textContent='MJL Gestão v40';
   document.body.appendChild(b);
 })();
 
