@@ -841,6 +841,30 @@ tr:hover td{background:var(--brand-light);}
   <div id="doc-viewer-corpo" style="flex:1;overflow:auto;padding:22px 16px 60px;"></div>
 </div>
 
+<div id="modal-liberar" class="modal-overlay hidden"><div class="modal">
+  <div class="modal-hdr"><h3>Liberar para a equipe</h3><button class="modal-cls" onclick="fecharModal('modal-liberar')">×</button></div>
+  <div class="modal-body">
+    <input type="hidden" id="mlib-id">
+    <div id="mlib-pedido" style="background:var(--bg);border-radius:9px;padding:12px 14px;margin-bottom:14px;"></div>
+    <div id="mlib-sugestao"></div>
+    <div class="fg"><label>Quem vai fazer? *</label>
+      <select id="mlib-colab"></select>
+      <p style="font-size:11.5px;color:var(--text3);margin:5px 0 0;">
+        Escolhendo uma pessoa, o pedido aparece só no celular dela. Deixando em
+        <strong>toda a equipe do local</strong>, aparece para todos que atendem ali.
+      </p>
+    </div>
+    <div class="fg"><label>Quer acrescentar alguma instrução? (opcional)</label>
+      <input type="text" id="mlib-obs" placeholder="Ex.: passar antes das 11h, a síndica acompanha">
+      <p style="font-size:11.5px;color:var(--text3);margin:5px 0 0;">Vai junto com o pedido, no celular do colaborador.</p>
+    </div>
+  </div>
+  <div class="modal-ft">
+    <button class="btn btn-ghost" onclick="fecharModal('modal-liberar')">Cancelar</button>
+    <button class="btn btn-green" onclick="confirmarLiberacao()">▶ Liberar</button>
+  </div>
+</div></div>
+
 <div id="modal-portal" class="modal-overlay hidden"><div class="modal">
   <div class="modal-hdr"><h3 id="mpo-titulo">Acesso ao Portal</h3><button class="modal-cls" onclick="fecharModal('modal-portal')">×</button></div>
   <div class="modal-body">
@@ -5390,6 +5414,8 @@ function _supLinha(p, mostrarBotoes){
   if(p.texto) h += '<div style="font-size:13px;background:#f8fafc;border:1px solid #e6ecf2;border-radius:8px;padding:7px 10px;line-height:1.5;">'+escaparHTML(p.texto)+'</div>';
   if(resolvida) h += '<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:6px;">✅ Resolvida em '+_supData(p.resolvidoEm)+(p.resolvidoHora?(' às '+p.resolvidoHora):'')+(p.resolvidoPorNome?(' por '+escaparHTML(p.resolvidoPorNome)):'')+'</div>';
   if(travada) h += '<div style="font-size:12px;color:#7b2d8b;font-weight:700;margin-top:6px;">🔒 Travada — só vai para a equipe depois que você liberar</div>';
+  if(p.liberada && p.colaboradorNome) h += '<div style="font-size:12px;color:var(--green);font-weight:700;margin-top:6px;">▶ Liberada para '+escaparHTML(p.colaboradorNome)+'</div>';
+  else if(p.liberada && p.origem==='cliente') h += '<div style="font-size:12px;color:var(--text3);margin-top:6px;">▶ Liberada para toda a equipe do local</div>';
   if(p.respostaCliente) h += '<div style="font-size:12.5px;background:#eef4f9;border:1px solid #cfe0ee;border-radius:8px;padding:7px 10px;margin-top:6px;"><strong>Sua resposta ao cliente:</strong> '+escaparHTML(p.respostaCliente)+'</div>';
   h += '</div>';
   if(mostrarBotoes && !resolvida){
@@ -6288,12 +6314,166 @@ function _supGrava(p){
     body:JSON.stringify({acao:'atualizarPendencia',dados:p})}).catch(function(){});
   renderSupervisao(); supBadge();
 }
+
+// ================================================================
+// v37 — LIBERAR O PEDIDO DO CLIENTE PARA A PESSOA CERTA
+//
+// Num condomínio grande, cada colaborador cuida de um pedaço: a Edilce
+// no Bloco 2, a Sandra no Bloco 1. Até aqui, liberar um pedido do
+// cliente mandava para TODO MUNDO que atende o local — e o pedido do
+// Bl 1 chegava também no celular de quem cuida do Bl 2.
+//
+// Como o sistema descobre de quem é: ele olha a ÁREA do pedido e
+// procura, entre os cronogramas daquele condomínio, qual deles tem
+// essa área nas tarefas. O cronograma já diz quem o vê
+// (Visível para → colaboradores específicos). Esse é o responsável.
+//
+// A sugestão NUNCA decide sozinha. Ela vem marcada e você confirma ou
+// troca. Isso não é desconfiança do código: quem transforma o pedido
+// do cliente em ordem para a equipe tem que ser a MJL, senão o cliente
+// vira chefe do colaborador — e é a MJL que responde por ele.
+// ================================================================
+
+function _normArea(t){
+  return String(t||'').toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')   // tira acento
+    .replace(/[^a-z0-9]+/g,' ').trim();
+}
+
+// Todas as áreas que um cronograma cobre, já com "Andar 1-9" aberto.
+// ATENCAO: expandirAreas() recebe a TAREFA INTEIRA, nao o texto das
+// areas. Chamando com o texto ela devolve lista vazia em silencio — e
+// a sugestao nunca aparecia. Foi assim que o teste pegou.
+// A area tambem pode vir no texto da propria tarefa ("Limpar a
+// churrasqueira"), entao ela entra na lista do mesmo jeito.
+function _areasDoCronograma(cr){
+  var out=[];
+  function doTarefa(t){
+    if(typeof t==='string'){ out.push(t); return; }
+    if(!t) return;
+    var ex=expandirAreas(t);
+    if(ex.length) ex.forEach(function(a){ out.push(a); });
+    if(t.area) out.push(t.area);
+    if(t.texto) out.push(t.texto);
+  }
+  var tpd=cr.tarefasPorDia||{};
+  Object.keys(tpd).forEach(function(d){ (tpd[d]||[]).forEach(doTarefa); });
+  (cr.periodicas||[]).forEach(doTarefa);
+  return out;
+}
+
+// Devolve {ids:[], nomes:[], motivo:''} ou null
+function sugerirResponsavel(p){
+  if(!p || !p.local) return null;
+  var area=_normArea(p.area);
+  var texto=_normArea(p.texto);
+  // v37.1: os cronogramas NAO ficam no DB — vivem na chave propria
+  // 'mjl_cronogramas'. Lendo DB.cronogramas a lista vinha sempre vazia
+  // e a sugestao nunca aparecia. O teste pegou: a area certa nao casava
+  // com ninguem, e so o nome do posto no texto funcionava.
+  var cronos=(ler('mjl_cronogramas',[])||[]).filter(function(cr){
+    return cr && cr.ativo!==false && cr.cliente
+      && String(cr.cliente).toLowerCase()===String(p.local).toLowerCase()
+      && cr.visib==='especifico' && Array.isArray(cr.colabsIds) && cr.colabsIds.length;
+  });
+  if(!cronos.length) return null;
+
+  var melhor=null;
+  cronos.forEach(function(cr){
+    var achou='';
+    // 1) a área do pedido bate com uma área do cronograma
+    if(area){
+      _areasDoCronograma(cr).forEach(function(a){
+        var na=_normArea(a);
+        if(!na||achou) return;
+        if(na===area || area.indexOf(na)>=0 || na.indexOf(area)>=0) achou='area:'+a;
+      });
+    }
+    // 2) o nome do posto aparece na área ou no texto do pedido
+    //    ("Living Choice — Bloco 1" com um pedido no "Bl 1, 5 andar")
+    if(!achou){
+      var nome=_normArea(cr.nome).replace(_normArea(p.local),'').trim();
+      if(nome && nome.length>2 && ((area&&area.indexOf(nome)>=0)||(texto&&texto.indexOf(nome)>=0))) achou='posto:'+cr.nome;
+    }
+    if(achou && !melhor) melhor={cr:cr,porque:achou};
+  });
+  if(!melhor) return null;
+
+  var ids=melhor.cr.colabsIds.filter(function(i){
+    return (DB.colaboradores||[]).some(function(c){ return c.id===i && (c.status||'ativo')==='ativo'; });
+  });
+  if(!ids.length) return null;
+  return {
+    ids:ids,
+    nomes:ids.map(function(i){ var c=(DB.colaboradores||[]).find(function(x){ return x.id===i; }); return c?c.nome:''; }).filter(Boolean),
+    cronograma:melhor.cr.nome||'',
+    porque:melhor.porque
+  };
+}
+
 function supLiberar(id){
   var p=supPend().find(function(x){ return x.id===id; }); if(!p) return;
-  if(!confirm('Liberar para a equipe?\n\n"'+(p.tarefa||'')+'"\n\nEla vai aparecer no celular do colaborador como pedido da MJL.')) return;
-  p=Object.assign({},p,{liberada:true,liberadaPorNome:'MJL',liberadaEm:new Date().toISOString().slice(0,16).replace('T',' ')});
-  _supGrava(p);
+  document.getElementById('mlib-id').value=p.id;
+  document.getElementById('mlib-obs').value='';
+
+  document.getElementById('mlib-pedido').innerHTML=
+    '<div style="font-size:12px;color:var(--text3);">📍 '+escaparHTML(p.local||'')+
+      (p.area?(' · '+escaparHTML(p.area)):'')+
+      (p.criadoPorNome?(' · pedido de '+escaparHTML(p.criadoPorNome)):'')+'</div>'+
+    '<div style="font-size:14px;margin-top:5px;">'+escaparHTML(p.texto||'')+'</div>'+
+    (p.urgente?'<div style="font-size:12px;color:var(--red);font-weight:700;margin-top:6px;">🔴 O cliente marcou que a equipe ainda estava no local</div>':'');
+
+  // quem atende este condomínio
+  var doLocal=(DB.colaboradores||[]).filter(function(c){
+    if((c.status||'ativo')!=='ativo') return false;
+    var ids=(c.clientesIds&&c.clientesIds.length)?c.clientesIds:[c.clienteId];
+    return ids.some(function(i){ return nCli(i)===p.local; });
+  });
+
+  var sug=sugerirResponsavel(p);
+  var sel=document.getElementById('mlib-colab');
+  sel.innerHTML='<option value="">Toda a equipe do local</option>'+
+    doLocal.map(function(c){ return '<option value="'+c.id+'">'+escaparHTML(c.nome)+'</option>'; }).join('');
+  if(sug && sug.ids.length && doLocal.some(function(c){ return c.id===sug.ids[0]; })) sel.value=sug.ids[0];
+
+  var cx=document.getElementById('mlib-sugestao');
+  if(sug){
+    var tipo=sug.porque.split(':')[0], det=sug.porque.split(':').slice(1).join(':');
+    cx.innerHTML='<div style="background:#f0f8f3;border:1.5px solid #bfe0cd;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#1e7e4a;line-height:1.5;">'+
+      '<strong>Sugestão: '+escaparHTML(sug.nomes.join(', '))+'</strong><br>'+
+      (tipo==='area'
+        ? ('A área <strong>'+escaparHTML(det)+'</strong> está no cronograma "'+escaparHTML(sug.cronograma)+'".')
+        : ('O pedido menciona <strong>'+escaparHTML(det)+'</strong>.'))+
+      ' Confira e troque se não for.</div>';
+  } else {
+    cx.innerHTML='<div style="background:#fff8e1;border:1.5px solid #f3e2b0;border-radius:9px;padding:11px 13px;margin-bottom:14px;font-size:12.5px;color:#7a5c14;line-height:1.5;">'+
+      'Não consegui identificar de quem é essa área. Para o sistema sugerir sozinho, crie um cronograma por posto em <strong>Cronogramas</strong>, com <em>Visível para → colaboradores específicos</em>.</div>';
+  }
+  document.getElementById('modal-liberar').classList.remove('hidden');
 }
+
+function confirmarLiberacao(){
+  var id=document.getElementById('mlib-id').value;
+  var p=supPend().find(function(x){ return x.id===id; }); if(!p) return;
+  var cid=document.getElementById('mlib-colab').value;
+  var c=cid?(DB.colaboradores||[]).find(function(x){ return x.id===cid; }):null;
+  var obs=document.getElementById('mlib-obs').value.trim();
+
+  var novo=Object.assign({},p,{
+    liberada:true,
+    liberadaPorNome:'MJL',
+    liberadaEm:new Date().toISOString().slice(0,16).replace('T',' ')
+  });
+  // campo ausente nao e o mesmo que vazio: sem pessoa escolhida, os
+  // campos saem do registro e a pendencia volta a valer para a equipe toda
+  if(c){ novo.colaboradorId=c.id; novo.colaboradorNome=c.nome; }
+  else { delete novo.colaboradorId; delete novo.colaboradorNome; }
+  if(obs) novo.texto=(p.texto||'')+'\n\n[MJL] '+obs;
+
+  _supGrava(novo);
+  fecharModal('modal-liberar');
+}
+
 // v36 — RESPONDER AO CLIENTE
 // Este texto aparece no Portal do Síndico, dentro do pedido que ele
 // mandou. É o único canal em que a MJL fala com o cliente pelo sistema,
@@ -6930,7 +7110,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v36';
+  b.textContent='MJL Gestão v37.1';
   document.body.appendChild(b);
 })();
 
