@@ -5071,7 +5071,12 @@ function abrirModalNovoCrono(){
   document.getElementById('crono-funcao').value = 'ASG';
   // Resetar dias
   document.querySelectorAll('#crono-dias-grid .dia-btn').forEach(function(b){ b.classList.remove('ativo'); });
+  // v41: desenha ja o bloco TODO DIA, antes de escolher o cliente.
+  // Esvaziar o container deixava a tela sem ele ate marcar um dia, e a
+  // primeira coisa que a pessoa quer escrever e justamente o que e de
+  // todo dia.
   document.getElementById('crono-tarefas-container').innerHTML = '';
+  renderTarefasPorDia();
   cronoPeriodicas=[]; renderPeriodicas(); var av=document.getElementById('crono-dias-aviso'); if(av) av.innerHTML=''; document.getElementById('per-inicio').value=new Date().toISOString().slice(0,10); atualizarCamposPer();
   // Popular clientes
   var cols = ler('mjl_gestao_cols',[]);
@@ -5118,7 +5123,7 @@ function renderTarefasPorDia(){
     });
     tarefasExistentes[dia] = lista;
   });
-  if(!diasAtivos.length){ container.innerHTML = ''; return; }
+  // sem dia marcado ainda, o bloco TODO DIA continua existindo
   var html = '<div class="tarefas-por-dia">';
   // v25: a MJL digitou "Andar 1" em todas as linhas achando que era um
   // campo por andar. O campo aceita INTERVALO — isso precisa estar
@@ -5130,6 +5135,31 @@ function renderTarefasPorDia(){
     '<span style="font-family:monospace;background:#fff;border:1px solid #cfe0ee;border-radius:5px;padding:1px 6px;">Hall, Garagem, Playground</span> gera 3 tarefas<br>'+
     '<span style="color:var(--text2);">Campo vazio = tarefa normal, uma s\u00f3.</span>'+
   '</div>';
+  // v41: TAREFA DE TODO DIA.
+  // Nos cronogramas reais quase tudo e diario: "limpeza dos andares",
+  // "portaria", "hall". Repetir cada uma nos sete dias e trabalhoso e,
+  // pior, muda em sete lugares quando muda. Aqui a tarefa entra UMA vez
+  // e o App Campo a mostra em todo dia em que o posto atende.
+  // O balde 99 nao e um dia da semana: e o balde do "todo dia".
+  var tDiarias = tarefasExistentes[99] || [];
+  html += '<div class="dia-tarefas-section" data-dia="99" style="margin-bottom:18px;border:2px solid var(--green);border-radius:10px;padding:12px;background:#f3faf6;">';
+  html += '<div class="dia-tarefas-hdr" style="border:0;padding:0 0 6px;">';
+  html += '<span style="color:var(--green);">🔁 TODO DIA</span>';
+  html += '</div>';
+  html += '<p style="font-size:11.5px;color:var(--text2);margin:0 0 9px;">O que se repete todos os dias em que a MJL atende este local. Escreva uma vez só — aparece em todos os dias marcados abaixo.</p>';
+  html += '<div class="lista-tarefas-99">';
+  tDiarias.forEach(function(t,i){ html += renderTarefaItem(99, t, i); });
+  html += '</div>';
+  html += '<div class="tarefa-input-row">';
+  html += '<input type="text" id="nova-tarefa-99" placeholder="Ex.: Limpeza dos andares" style="flex:1;padding:9px 12px;border-radius:var(--r-sm);border:1.5px solid var(--border);font-size:13px;" onkeydown="if(event.key==String.fromCharCode(13))adicionarTarefa(99)">';
+  html += '<button class="btn btn-green btn-sm" onclick="adicionarTarefa(99)" style="padding:9px 14px;">+</button>';
+  html += '</div>';
+  html += '</div>';
+
+  if(diasAtivos.length){
+    html += '<div style="font-size:12px;color:var(--text3);margin:0 0 10px;">Abaixo, só o que é <strong>daquele dia</strong> — bombonas na quarta, lixeira geral na quinta. O que é de todo dia fica no bloco verde acima.</div>';
+  }
+
   diasAtivos.forEach(function(dia, idx){
     var tarefas = tarefasExistentes[dia] || [];
     html += '<div class="dia-tarefas-section" data-dia="'+dia+'" style="margin-bottom:16px;">';
@@ -5290,6 +5320,7 @@ function coletarTarefasDoCrono(){
   var resultado = {};
   document.querySelectorAll('.dia-tarefas-section').forEach(function(sec){
     var dia = parseInt(sec.dataset.dia);
+    if(dia===99) return;              // o balde do "todo dia" sai separado
     var lista = [];
     sec.querySelectorAll('.tarefa-item').forEach(function(ti){
       lista.push(_objTarefa(ti));
@@ -5297,6 +5328,15 @@ function coletarTarefasDoCrono(){
     resultado[dia] = lista;
   });
   return resultado;
+}
+
+// v41: as tarefas de TODO DIA, guardadas fora do tarefasPorDia
+function coletarTarefasDiarias(){
+  var sec = document.querySelector('.dia-tarefas-section[data-dia="99"]');
+  if(!sec) return [];
+  var lista = [];
+  sec.querySelectorAll('.tarefa-item').forEach(function(ti){ lista.push(_objTarefa(ti)); });
+  return lista;
 }
 
 function toggleVisibColabs(){
@@ -6676,7 +6716,8 @@ function salvarCronograma(){
   var diasAtivos = _diasSelecionadosCrono();
   if(!diasAtivos.length){ alert('Selecione pelo menos um dia da semana.'); return; }
   var tarefasPorDia = coletarTarefasDoCrono();
-  var temTarefas = diasAtivos.some(function(d){ return tarefasPorDia[d]&&tarefasPorDia[d].length; });
+  var tarefasDiarias = coletarTarefasDiarias();
+  var temTarefas = tarefasDiarias.length || diasAtivos.some(function(d){ return tarefasPorDia[d]&&tarefasPorDia[d].length; });
   if(!temTarefas&&!cronoPeriodicas.length){ alert('Adicione pelo menos uma tarefa.'); return; }
   var cronos = ler('mjl_cronogramas',[]);
   var id = cronoEditandoId || gid();
@@ -6689,7 +6730,7 @@ function salvarCronograma(){
   var obj = {
     id: id, nome: nome, cliente: cliente, funcao: funcao,
     obs: document.getElementById('crono-obs').value.trim(),
-    dias: diasAtivos, tarefasPorDia: tarefasPorDia,
+    dias: diasAtivos, tarefasPorDia: tarefasPorDia, tarefasDiarias: tarefasDiarias,
     visib: visib, colabsIds: colabsIds, periodicas: cronoPeriodicas.slice(),
     ativo: true, criadoEm: new Date().toISOString()
   };
@@ -6867,12 +6908,18 @@ function gerarRelatorio(){
   h+='</div>';
 
   // ---------- EQUIPE ----------
-  h+='<div class="rel-sec"><h2>Equipe no período</h2><table class="rel-tab"><thead><tr><th>Colaborador</th><th>Função</th><th style="text-align:right">Tarefas registradas</th></tr></thead><tbody>';
-  Object.keys(colabs).sort(function(a,b){ return colabs[b]-colabs[a]; }).forEach(function(nome){
-    var c=(DB.colaboradores||[]).find(function(x){ return x.nome===nome; })||{};
-    h+='<tr><td>'+escaparHTML(nome)+'</td><td>'+escaparHTML(c.funcao||'—')+'</td><td style="text-align:right">'+colabs[nome]+'</td></tr>';
-  });
-  h+='</tbody></table></div>';
+  // v41: SEM NOMES E SEM CONTAGEM POR PESSOA.
+  // Aqui havia uma tabela "Colaborador · Função · Tarefas registradas",
+  // ORDENADA DA MAIOR PARA A MENOR. Era um ranking de produtividade
+  // indo para o síndico — e virava discussão de que um faz mais que o
+  // outro, inclusive dentro do condomínio. O cliente contrata a MJL,
+  // não cada pessoa: o que ele precisa saber é que o serviço foi feito.
+  // A informação individual continua existindo no Gestão, para a MJL.
+  var _nPessoas=Object.keys(colabs).length;
+  h+='<div class="rel-sec"><h2>Equipe no período</h2>'+
+     '<p class="rel-texto">A MJL manteve '+_nPessoas+' profissional'+(_nPessoas>1?'is':'')+
+     ' no atendimento deste local no período, conforme o quadro contratado. '+
+     'Todos os registros abaixo foram feitos em campo, com data, hora e foto.</p></div>';
 
   // ---------- SERVIÇOS POR DIA ----------
   h+='<div class="rel-sec"><h2>Serviços executados</h2>';
@@ -6885,7 +6932,8 @@ function gerarRelatorio(){
     porDia[data].forEach(function(x){
       var fotos=fotosDaTarefa(x);
       h+='<div class="rel-item"><div class="rel-item-txt"><div class="ri-nome">✔ '+escaparHTML(_relTarefa(x))+'</div>';
-      h+='<div class="ri-meta">'+escaparHTML(x.colaboradorNome||'Colaborador')+' · concluído às '+(x.hora||'—')+'</div>';
+      // v41: sem nome de colaborador na linha do serviço, pelo mesmo motivo
+      h+='<div class="ri-meta">Concluído às '+(x.hora||'—')+'</div>';
       if(x.obs) h+='<div class="ri-obs">📝 '+escaparHTML(x.obs)+'</div>';
       h+='</div>';
       if(fotos.length){
@@ -7069,9 +7117,32 @@ function verCronograma(id){
   html += '</div>';
   html += '<div class="crono-print-titulo">'+c.nome+'</div>';
   html += '<div class="crono-print-info">Função: '+c.funcao+' · Dias: '+diasStr+'</div>';
+  // v41: TODO DIA primeiro — é o grosso do cronograma de um posto.
+  // Este documento é do POSTO, não de uma pessoa: serve para quem
+  // estiver nele hoje e para quem entrar amanhã.
+  if(c.tarefasDiarias && c.tarefasDiarias.length){
+    html += '<div class="crono-dia-bloco">';
+    html += '<div class="crono-dia-nome">🔁 TODO DIA</div>';
+    html += '<div class="crono-dia-tarefas">';
+    c.tarefasDiarias.forEach(function(t){
+      var exp=expandirAreas(t);
+      if(exp.length){
+        exp.forEach(function(nomeArea){
+          html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(_txtTarefa(t))+' <span style="color:#7a8a9a;font-size:11px;">— '+escaparHTML(nomeArea)+'</span></span></div>';
+        });
+        return;
+      }
+      html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(_txtTarefa(t))+(_areaTarefa(t)?' <span style="color:#7a8a9a;font-size:11px;">— '+escaparHTML(_areaTarefa(t))+'</span>':'')+'</span></div>';
+    });
+    html += '</div></div>';
+  }
   // Tarefas por dia
   ordenaDias(c.dias).forEach(function(dia){
     var tarefas = c.tarefasPorDia&&c.tarefasPorDia[dia] ? c.tarefasPorDia[dia] : [];
+    // v41: dia sem tarefa propria nao vira bloco. Com quase tudo em
+    // TODO DIA, sete blocos escritos "Nenhuma tarefa" enchiam meia
+    // pagina do documento que fica no posto.
+    if(!tarefas.length) return;
     html += '<div class="crono-dia-bloco">';
     html += '<div class="crono-dia-nome">'+DIAS_NOMES[dia].toUpperCase()+'</div>';
     html += '<div class="crono-dia-tarefas">';
@@ -7087,9 +7158,11 @@ function verCronograma(id){
       }
       html += '<div class="crono-check-item"><div class="crono-check-box"></div><span>'+escaparHTML(_txtTarefa(t))+(_areaTarefa(t)?' <span style="color:#7a8a9a;font-size:11px;">— '+escaparHTML(_areaTarefa(t))+'</span>':'')+'</span></div>';
     });
-    if(!tarefas.length) html += '<div style="color:var(--text3);font-size:12px;padding:6px 0;">Nenhuma tarefa.</div>';
     html += '</div></div>';
   });
+  if(!(c.tarefasDiarias||[]).length && !ordenaDias(c.dias).some(function(d){ return (c.tarefasPorDia&&c.tarefasPorDia[d]||[]).length; }) && !(c.periodicas||[]).length){
+    html += '<div style="color:var(--text3);font-size:12.5px;padding:10px 0;">Este cronograma ainda não tem tarefas cadastradas.</div>';
+  }
   // Tarefas periódicas
   if(c.periodicas&&c.periodicas.length){
     html += '<div class="crono-dia-bloco">';
@@ -7164,6 +7237,12 @@ function editarCronograma(id){
   // Renderizar tarefas
   renderTarefasPorDia();
   // Preencher tarefas existentes
+  (function(){
+    var lista = document.querySelector('.lista-tarefas-99');
+    if(!lista) return;
+    lista.innerHTML = '';
+    (c.tarefasDiarias||[]).forEach(function(t,i){ lista.insertAdjacentHTML('beforeend', renderTarefaItem(99,t,i)); });
+  })();
   if(c.tarefasPorDia){
     ordenaDias(c.dias).forEach(function(dia){
       var lista = document.querySelector('.lista-tarefas-'+dia);
@@ -7233,7 +7312,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v40';
+  b.textContent='MJL Gestão v41';
   document.body.appendChild(b);
 })();
 
