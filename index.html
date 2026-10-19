@@ -3774,6 +3774,27 @@ function renderFotos(){
 // ================================================================
 var _jaAvisei={};
 
+function _trazerDaPlanilha(chave, faltam, rotulo){
+  // v43: mescla por ID. Nunca substitui a lista inteira, nunca apaga.
+  if(chave==='clientes'){
+    var jaTem={}; (DB.clientes||[]).forEach(function(x){ if(x&&x.id) jaTem[x.id]=true; });
+    faltam.forEach(function(x){ if(!jaTem[x.id]) DB.clientes.push(x); });
+    salvarDB();
+    try{ renderCli&&renderCli(); }catch(e){}
+    try{ renderDash&&renderDash(); }catch(e){}
+  } else if(chave==='cronogramas'){
+    var cr=ler('mjl_cronogramas',[]);
+    var jaC={}; cr.forEach(function(x){ if(x&&x.id) jaC[x.id]=true; });
+    faltam.forEach(function(x){ if(!jaC[x.id]) cr.push(x); });
+    salvar('mjl_cronogramas', cr);
+    try{ renderListaCronogramas&&renderListaCronogramas(); }catch(e){}
+  } else { return; }
+  // liberado: na proxima sincronizacao as duas listas ja batem
+  _jaAvisei[chave]=false;
+  alert('\u{1F4E5} Trouxe '+faltam.length+' da planilha para este navegador ('+rotulo+').\n\n'+
+        'Confira a tela e clique em Sincronizar de novo.');
+}
+
 function publicarLista(url, acao, chave, lista, rotulo, montar){
   if(!url || !lista || !lista.length) return;   // vazio continua barrado
   var enviar=function(){
@@ -3790,15 +3811,33 @@ function publicarLista(url, acao, chave, lista, rotulo, montar){
     .then(function(d){
       var naPlanilha=(d && d[chave] && d[chave].length) ? d[chave].length : 0;
       if(naPlanilha > lista.length){
-        if(!_jaAvisei[chave]){
-          _jaAvisei[chave]=true;
-          alert('\u26A0\uFE0F NÃO publiquei '+rotulo+' para a planilha.\n\n'+
-            'Aqui neste navegador há '+lista.length+', e na planilha há '+naPlanilha+'.\n\n'+
-            'Publicar agora apagaria os que faltam aqui. Isso costuma acontecer quando o '+
-            'Gestão é aberto num computador novo, noutro perfil do Chrome, ou depois de limpar os dados do site.\n\n'+
-            'O que fazer: use o computador onde a lista está completa. Se esta aqui é a certa e você '+
-            'apagou de propósito, fale comigo que eu libero a publicação.');
+        if(_jaAvisei[chave]) return;
+        _jaAvisei[chave]=true;
+        // v43: ate aqui o aviso so BARRAVA a publicacao, e o download do
+        // Sheets so acontecia com a lista local VAZIA. Com 6 aqui e 12 la,
+        // nada subia e nada descia — ficava empatado para sempre.
+        // Agora o caminho de volta existe: trazer os que faltam, por id,
+        // sem apagar nada do que ja esta neste navegador.
+        var remotos=(d && d[chave]) ? d[chave] : [];
+        if(chave==='clientes' || chave==='cronogramas'){
+          var temAqui={}; lista.forEach(function(x){ if(x&&x.id) temAqui[x.id]=true; });
+          var faltam=remotos.filter(function(x){ return x && x.id && !temAqui[x.id]; });
+          if(faltam.length){
+            if(confirm('\u2139\uFE0F A planilha tem mais do que este navegador — '+rotulo+'.\n\n'+
+               'Aqui: '+lista.length+'   |   Na planilha: '+naPlanilha+'\n\n'+
+               'Posso TRAZER para cá os '+faltam.length+' que faltam. Nada do que já está '+
+               'neste navegador será apagado.\n\nTrazer agora?')){
+              _trazerDaPlanilha(chave, faltam, rotulo);
+              return;
+            }
+          }
         }
+        alert('\u26A0\uFE0F NÃO publiquei '+rotulo+' para a planilha.\n\n'+
+          'Aqui neste navegador há '+lista.length+', e na planilha há '+naPlanilha+'.\n\n'+
+          'Publicar agora apagaria os que faltam aqui. Isso costuma acontecer quando o '+
+          'Gestão é aberto num computador novo, noutro perfil do Chrome, ou depois de limpar os dados do site.\n\n'+
+          'O que fazer: use o computador onde a lista está completa. Se esta aqui é a certa e você '+
+          'apagou de propósito, fale comigo que eu libero a publicação.');
         return;   // NÃO publica
       }
       enviar();
@@ -7389,7 +7428,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v42';
+  b.textContent='MJL Gestão v43';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
