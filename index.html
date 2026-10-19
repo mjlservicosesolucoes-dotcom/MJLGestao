@@ -252,7 +252,35 @@ tr:hover td{background:var(--brand-light);}
 .rel-ass-l span{font-weight:400;font-size:10.5px;color:#8a9aaa;}
 .rel-rod{margin-top:26px;padding-top:10px;border-top:1px solid #eef2f6;font-size:9.5px;color:#9aaaba;text-align:center;}
 @media(max-width:640px){.rel-sec{padding:20px 18px;}.rel-capa{padding:24px 20px;}.rel-cliente{font-size:23px;}.rel-item{flex-direction:column;}.rel-fotos{max-width:100%;justify-content:flex-start;}}
+
+/* v42 — ESTILO DO CRONOGRAMA (faltava desde sempre).
+   O cabecalho do cartao nao tinha fundo azul, entao o botao "Ver"
+   (texto branco) ficava branco no branco: existia, mas era invisivel.
+   E o documento do cronograma ia para o papel sem nenhuma formatacao. */
+.crono-card{background:#fff;border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:14px;box-shadow:0 1px 3px rgba(26,79,122,.08);}
+.crono-card-hdr{background:#1a4f7a;color:#fff;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+.crono-card-hdr .sub{font-size:11.5px;color:rgba(255,255,255,.82);margin-top:3px;}
+.crono-card-hdr .btn{background:transparent;color:#fff;}
+.crono-card-hdr .btn:hover{background:rgba(255,255,255,.14);}
+.crono-card-body{padding:12px 14px;}
+.crono-print{background:#fff;color:#22313f;font-size:12.5px;line-height:1.5;}
+.crono-print-hdr{display:flex;align-items:center;gap:14px;padding-bottom:10px;border-bottom:2.5px solid #1a4f7a;margin-bottom:14px;}
+.crono-print-hdr img{height:52px;object-fit:contain;}
+.crono-print-hdr .emp-nome{font-size:16px;font-weight:700;color:#1a4f7a;}
+.crono-print-hdr .emp-sub{font-size:10px;color:#5a6a7a;letter-spacing:.5px;}
+.crono-print-titulo{font-size:17px;font-weight:700;color:#1a4f7a;margin-top:2px;}
+.crono-print-info{font-size:11.5px;color:#7a8a9a;margin-bottom:12px;}
+.crono-dia-bloco{margin-bottom:12px;break-inside:avoid;}
+.crono-dia-nome{background:#f4f8fb;border-left:3px solid #1e7e4a;padding:6px 11px;font-size:12px;font-weight:700;color:#1a4f7a;letter-spacing:.6px;border-radius:0 6px 6px 0;}
+.crono-dia-tarefas{padding:7px 4px 0 11px;}
+.crono-check-item{display:flex;align-items:flex-start;gap:9px;padding:4px 0;font-size:12.5px;break-inside:avoid;}
+.crono-check-box{width:13px;height:13px;border:1.5px solid #9aaaba;border-radius:3px;flex-shrink:0;margin-top:3px;}
+.crono-assinaturas{display:flex;gap:30px;margin-top:30px;break-inside:avoid;}
+.crono-ass-linha{flex:1;border-top:1px solid #22313f;padding-top:6px;font-size:11px;text-align:center;color:#3d4d5c;}
+.crono-rodape{margin-top:20px;padding-top:9px;border-top:1px solid #eef2f6;font-size:9.5px;color:#9aaaba;text-align:center;}
+@media(max-width:640px){.crono-card-hdr{flex-direction:column;align-items:flex-start;}.crono-assinaturas{gap:14px;}}
 </style>
+
 
 <style id="print-styles">
 @media print {
@@ -308,6 +336,14 @@ tr:hover td{background:var(--brand-light);}
   #print-area .av-lado img{height:135px;}
   #print-area .av-vazio{height:135px;}
   #print-area .av-tag{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  /* v42: o cronograma no papel mantem as cores e nao parte no meio de um dia */
+  #print-area .crono-print-hdr,
+  #print-area .crono-dia-nome{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  #print-area .crono-dia-bloco{page-break-inside:avoid;}
+  #print-area .crono-assinaturas{page-break-inside:avoid;margin-top:22px;}
+  /* v42: o cronograma ja traz o proprio timbre da MJL. Sem isto o papel
+     saia com o cabecalho da empresa duas vezes, um embaixo do outro. */
+  body.imprimindo-crono .mjl-print-header{display:none !important;}
   #print-area .rel-titulo{padding:0 0 14px;}
   #print-area .rel-titulo .rel-cliente{font-size:22px;}
   /* v29: o relatorio de um mes curto transbordava uns milimetros e
@@ -1179,6 +1215,7 @@ tr:hover td{background:var(--brand-light);}
     </div>
     <div style="display:flex;gap:10px;margin-top:14px;">
       <button class="btn btn-primary" style="flex:1" onclick="salvarCronograma()">📤 Publicar cronograma</button>
+      <button class="btn btn-ghost" id="btn-imprimir-crono-edit" style="display:none" onclick="imprimirCronogramaId(document.getElementById('crono-id').value)" title="Imprime a última versão publicada">🖨️ Imprimir</button>
       <button class="btn btn-ghost" onclick="fecharModal('modal-crono')">Cancelar</button>
     </div>
   </div>
@@ -5064,6 +5101,8 @@ var cronoEditandoId = null;
 
 function abrirModalNovoCrono(){
   cronoEditandoId = null;
+  // v42: cronograma que ainda nao existe nao tem o que imprimir
+  (function(){ var b=document.getElementById('btn-imprimir-crono-edit'); if(b) b.style.display='none'; })();
   document.getElementById('mc-crono-titulo').textContent = 'Novo Cronograma';
   document.getElementById('crono-id').value = '';
   document.getElementById('crono-nome').value = '';
@@ -6979,7 +7018,17 @@ function gerarRelatorio(){
 }
 function imprimirRelatorio(){
   var el=document.getElementById('rel-para-imprimir');
-  if(!el){ alert('Gere o relatório primeiro.'); return; }
+  if(!el){
+    // v42: na tela de Cronogramas este botao do topo nao tem relatorio
+    // nenhum para imprimir. Em vez de "Gere o relatorio primeiro", que
+    // nao diz o que fazer, ele aponta o caminho.
+    var _pg=(document.getElementById('page-title')||{}).textContent||'';
+    if(/cronograma/i.test(_pg)){
+      alert('Para imprimir um cronograma, use o botão 🖨️ no cartão do cronograma (ou abra em "Ver" e clique em Imprimir).');
+      return;
+    }
+    alert('Gere o relatório primeiro.'); return;
+  }
   var pa=document.getElementById('print-area');
   if(!pa){ pa=document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
   document.body.classList.add('imprimindo');
@@ -7077,6 +7126,7 @@ function renderListaCronogramas(filtroFuncao){
           '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="verCronograma(this.dataset.id)" data-id="'+cid+'">Ver</button>' +
           '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="editarCronograma(this.dataset.id)" data-id="'+cid+'">✏️</button>' +
           '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="abrirCobertura(this.dataset.id)" data-id="'+cid+'">🔄</button>' +
+          '<button class="btn btn-ghost btn-sm" style="color:#fff;border-color:rgba(255,255,255,.3);" onclick="imprimirCronogramaId(this.dataset.id)" data-id="'+cid+'" title="Imprimir este cronograma">🖨️</button>' +
         '</div>' +
       '</div>' +
       '<div class="crono-card-body">' +
@@ -7107,6 +7157,16 @@ function verCronograma(id){
   document.getElementById('mvc-crono-titulo').textContent = c.nome;
   document.getElementById('btn-editar-crono').onclick = function(){ fecharModal('modal-ver-crono'); editarCronograma(id); };
   document.getElementById('btn-excluir-crono').onclick = function(){ excluirCronograma(id); };
+  var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
+  var html = _montarCronoHTML(c);
+  document.getElementById('mvc-crono-body').innerHTML = html;
+  var mvc=document.getElementById('modal-ver-crono'); mvc.classList.remove('hidden'); mvc.style.display='flex';
+}
+
+function _montarCronoHTML(c){
+  // v42: o documento do cronograma agora e montado aqui, separado da
+  // janela "Ver". Assim da para imprimir direto do cartao e de dentro
+  // da tela de editar, sem precisar abrir a janela antes.
   var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
   var html = '<div id="crono-para-imprimir" class="crono-print">';
   // Cabeçalho
@@ -7186,23 +7246,39 @@ function verCronograma(id){
   html += '</div>';
   html += '<div class="crono-rodape">MJL Serviços e Soluções | CNPJ 46.636.732/0001-73 | (21) 96838-1313 | contato@mjlservicosesolucoes.com.br | Qualidade e Excelência em Serviços</div>';
   html += '</div>';
-  document.getElementById('mvc-crono-body').innerHTML = html;
-  var mvc=document.getElementById('modal-ver-crono'); mvc.classList.remove('hidden'); mvc.style.display='flex';
+  return html;
+}
+
+function imprimirCronogramaId(id){
+  var c = ler('mjl_cronogramas',[]).find(function(x){ return x.id===id; });
+  if(!c){ alert('Cronograma nao encontrado.'); return; }
+  _mandarParaOPapel(_montarCronoHTML(c));
+}
+
+function _mandarParaOPapel(html){
+  var pa = document.getElementById('print-area');
+  if(!pa){ pa = document.createElement('div'); pa.id='print-area'; document.body.appendChild(pa); }
+  document.body.classList.add('imprimindo');
+  (function(){ var _ft=document.getElementById('mjl-print-footer');
+    if(_ft&&pa&&_ft.parentNode) _ft.parentNode.insertBefore(pa,_ft); })();
+  pa.innerHTML = html;
+  document.body.classList.toggle('imprimindo-crono', html.indexOf('crono-print')>-1);
+  // v30: cada impressao com o seu selo, para a limpeza da primeira
+  // nao apagar o documento da segunda.
+  var _selo='c'+Date.now()+'_'+Math.random();
+  pa.dataset.selo=_selo;
+  window.print();
+  setTimeout(function(){
+    if(pa.dataset.selo!==_selo) return;
+    pa.innerHTML=''; document.body.classList.remove('imprimindo');
+    document.body.classList.remove('imprimindo-crono');
+  },1500);
 }
 
 function imprimirCronograma(){
   var el = document.getElementById('crono-para-imprimir');
   if(!el) return;
-  var printArea = document.getElementById('print-area');
-  if(!printArea){ printArea = document.createElement('div'); printArea.id='print-area'; document.body.appendChild(printArea); }
-  document.body.classList.add('imprimindo');
-  // v27: coloca o documento ENTRE o cabecalho e o rodape da MJL.
-  // Antes ele era anexado ao fim do body e saia depois do rodape.
-  (function(){ var _ft=document.getElementById('mjl-print-footer'), _pa=document.getElementById('print-area');
-    if(_ft&&_pa&&_ft.parentNode) _ft.parentNode.insertBefore(_pa,_ft); })();
-  printArea.innerHTML = el.innerHTML;
-  window.print();
-  setTimeout(function(){ printArea.innerHTML=''; document.body.classList.remove('imprimindo'); }, 1000);
+  _mandarParaOPapel(el.innerHTML);
 }
 
 function editarCronograma(id){
@@ -7210,6 +7286,7 @@ function editarCronograma(id){
   var c = cronos.find(function(x){ return x.id===id; });
   if(!c) return;
   cronoEditandoId = id;
+  (function(){ var b=document.getElementById('btn-imprimir-crono-edit'); if(b) b.style.display=''; })();
   document.getElementById('mc-crono-titulo').textContent = 'Editar Cronograma';
   document.getElementById('crono-id').value = id;
   document.getElementById('crono-nome').value = c.nome;
@@ -7312,13 +7389,14 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v41';
+  b.textContent='MJL Gestão v42';
+  b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
 
 // v27: rede de seguranca — o navegador avisa quando a janela de
 // impressao fecha, entao a marca nunca fica presa.
-window.addEventListener('afterprint', function(){ document.body.classList.remove('imprimindo'); });
+window.addEventListener('afterprint', function(){ document.body.classList.remove('imprimindo'); document.body.classList.remove('imprimindo-crono'); });
 </script>
 
 <!-- ÁREA DE IMPRESSÃO -->
