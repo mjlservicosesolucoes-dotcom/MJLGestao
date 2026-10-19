@@ -7183,13 +7183,21 @@ function gerarRelatorio(){
 
   // ---------- RESUMO ----------
   h+='<div class="rel-sec"><h2>Resumo do mês</h2><div class="rel-kpis">';
-  h+='<div class="rel-kpi"><div class="k-num">'+feitos.length+'</div><div class="k-lab">tarefas concluídas</div></div>';
-  h+='<div class="rel-kpi"><div class="k-num">'+nDias+'</div><div class="k-lab">dias com atendimento</div></div>';
-  h+='<div class="rel-kpi"><div class="k-num">'+Object.keys(colabs).length+'</div><div class="k-lab">colaboradores</div></div>';
-  h+='<div class="rel-kpi"><div class="k-num">'+totalFotos+'</div><div class="k-lab">fotos registradas</div></div>';
+  // v48: plural. O documento saia com "1 DIAS COM ATENDIMENTO" e
+  // "1 COLABORADORES". Num papel de prestacao de contas, erro de
+  // portugues tira a credibilidade de tudo o que vem depois.
+  var _pl=function(n,um,varios){ return n===1 ? um : varios; };
+  var _nCol=Object.keys(colabs).length;
+  h+='<div class="rel-kpi"><div class="k-num">'+feitos.length+'</div><div class="k-lab">'+_pl(feitos.length,'tarefa concluída','tarefas concluídas')+'</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+nDias+'</div><div class="k-lab">'+_pl(nDias,'dia com atendimento','dias com atendimento')+'</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+_nCol+'</div><div class="k-lab">'+_pl(_nCol,'profissional no local','profissionais no local')+'</div></div>';
+  h+='<div class="rel-kpi"><div class="k-num">'+totalFotos+'</div><div class="k-lab">'+_pl(totalFotos,'foto registrada','fotos registradas')+'</div></div>';
   if(chamados.length) h+='<div class="rel-kpi"><div class="k-num">'+chFechados+'/'+chamados.length+'</div><div class="k-lab">chamados resolvidos</div></div>';
   h+='</div>';
-  h+='<p class="rel-texto">No período de '+MESES_EXT[mm-1]+' de '+ano+', a equipe da MJL executou e registrou em campo <strong>'+feitos.length+' tarefas</strong> do cronograma de '+escaparHTML(cliente)+', distribuídas em <strong>'+nDias+' dias</strong> de atendimento. Cada tarefa foi confirmada pelo colaborador no local, com data, hora e registro fotográfico.</p>';
+  h+='<p class="rel-texto">'+(modo==='dia'
+      ? ('Em '+new Date(diaEscolhido+'T12:00').toLocaleDateString('pt-BR')+', a equipe da MJL executou e registrou em campo <strong>'+feitos.length+' '+_pl(feitos.length,'tarefa','tarefas')+'</strong> do cronograma de '+escaparHTML(cliente)+'.')
+      : ('No período de '+MESES_EXT[mm-1]+' de '+ano+', a equipe da MJL executou e registrou em campo <strong>'+feitos.length+' '+_pl(feitos.length,'tarefa','tarefas')+'</strong> do cronograma de '+escaparHTML(cliente)+', em <strong>'+nDias+' '+_pl(nDias,'dia','dias')+'</strong> de atendimento.'))
+    +' Cada tarefa foi confirmada no local, com data, hora e registro fotográfico.</p>';
   h+='</div>';
 
   // ---------- EQUIPE ----------
@@ -7203,7 +7211,7 @@ function gerarRelatorio(){
   var _nPessoas=Object.keys(colabs).length;
   h+='<div class="rel-sec"><h2>Equipe no período</h2>'+
      '<p class="rel-texto">A MJL manteve '+_nPessoas+' profissional'+(_nPessoas>1?'is':'')+
-     ' no atendimento deste local no período, conforme o quadro contratado. '+
+     ' no atendimento deste local'+(modo==='dia'?' neste dia':' no período')+', conforme o quadro contratado. '+
      'Todos os registros abaixo foram feitos em campo, com data, hora e foto.</p></div>';
 
   // ---------- SERVIÇOS ----------
@@ -7715,7 +7723,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v47';
+  b.textContent='MJL Gestão v48';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
