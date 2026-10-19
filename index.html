@@ -247,6 +247,18 @@ tr:hover td{background:var(--brand-light);}
 .ri-obs{font-size:11.5px;color:#7a5c14;background:#fff8e1;border:1px solid #f3e2b0;border-radius:6px;padding:5px 9px;margin-top:6px;line-height:1.45;}
 .rel-fotos{display:flex;gap:5px;flex-wrap:wrap;flex-shrink:0;max-width:290px;justify-content:flex-end;}
 .rel-fotos img{width:66px;height:66px;object-fit:cover;border-radius:6px;border:1px solid #dde5ec;cursor:pointer;}
+/* v46 — LINHA DO DIA no resumo mensal. Um mes do Living da ~2.000
+   tarefas: em bloco por tarefa isso vira centenas de paginas e 2.000
+   imagens buscadas do Drive de uma vez. Aqui o dia e uma linha so. */
+.rd-linha{display:flex;align-items:center;gap:12px;padding:9px 10px;border-bottom:1px solid #eef2f6;break-inside:avoid;}
+.rd-data{min-width:112px;flex-shrink:0;}
+.rd-data b{font-size:13px;color:#1a4f7a;display:block;line-height:1.2;}
+.rd-data span{font-size:10.5px;color:#8a9aaa;}
+.rd-qtd{min-width:74px;flex-shrink:0;font-size:11.5px;color:#1e7e4a;font-weight:700;}
+.rd-fotos{display:flex;gap:4px;flex-wrap:wrap;flex:1;}
+.rd-fotos img{width:44px;height:44px;object-fit:cover;border-radius:5px;border:1px solid #dde5ec;cursor:pointer;}
+.rd-mais{font-size:10.5px;color:#8a9aaa;align-self:center;font-weight:700;}
+.rd-semfoto{font-size:11px;color:#b0bcc8;}
 .rel-ass{display:flex;gap:40px;margin-top:38px;}
 .rel-ass-l{flex:1;border-top:1px solid #22313f;padding-top:7px;font-size:12px;font-weight:600;text-align:center;}
 .rel-ass-l span{font-weight:400;font-size:10.5px;color:#8a9aaa;}
@@ -731,10 +743,17 @@ tr:hover td{background:var(--brand-light);}
             <select id="rel-cliente" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></select></div>
           <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Mês</label>
             <input type="month" id="rel-mes" style="padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></div>
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Formato</label>
+            <select id="rel-modo" onchange="_toggleRelDia()" style="padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
+              <option value="resumo">Resumo do mês — 1 linha por dia</option>
+              <option value="dia">Detalhado de um dia</option>
+            </select></div>
+          <div id="rel-dia-box" style="display:none;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Dia</label>
+            <select id="rel-dia" style="padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></select></div>
           <button class="btn btn-primary" onclick="gerarRelatorio()">📄 Gerar relatório</button>
           <button class="btn btn-ghost" onclick="imprimirRelatorio()">🖨️ Imprimir / PDF</button>
         </div>
-        <p style="font-size:11px;color:var(--text3);margin-top:8px;">Relatório de prestação de contas para o síndico: serviços executados, fotos e observações do mês. Use <strong>Imprimir / PDF</strong> e escolha "Salvar como PDF" para enviar por e-mail ou WhatsApp.</p>
+        <p style="font-size:11px;color:var(--text3);margin-top:8px;">Comprovação mensal para o síndico. O <strong>Resumo do mês</strong> é o que se manda por e-mail: uma linha por dia, com fotos pequenas. O <strong>Detalhado de um dia</strong> é para quando perguntarem de uma data específica.</p>
       </div>
       <div id="rel-saida"></div>
     </div>
@@ -7051,6 +7070,55 @@ function prepararRelatorio(){
   var m=document.getElementById('rel-mes');
   if(!m.value){ var d=new Date(); m.value=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'); }
 }
+// v46: 6 fotos por dia, ESPALHADAS entre tarefas diferentes. Pegar as
+// 6 primeiras traz 6 fotos do mesmo andar e parece pouco servico;
+// uma de cada tarefa mostra hall, andar, lixeira, portaria.
+function _fotosDoDiaEspalhadas(itens, limite){
+  var porTarefa=[], vistas={};
+  itens.forEach(function(x){
+    var k=_relTarefa(x);
+    var fs=fotosDaTarefa(x);
+    if(!fs.length) return;
+    if(!vistas[k]){ vistas[k]=[]; porTarefa.push(vistas[k]); }
+    vistas[k].push(fs[0]);
+  });
+  // roda as tarefas em rodadas: 1a foto de cada, depois a 2a de cada...
+  var out=[], rodada=0, total=0;
+  porTarefa.forEach(function(l){ total+=l.length; });
+  while(out.length<limite && rodada<50){
+    var achouNaRodada=false;
+    for(var i=0;i<porTarefa.length && out.length<limite;i++){
+      if(porTarefa[i][rodada]){ out.push(porTarefa[i][rodada]); achouNaRodada=true; }
+    }
+    if(!achouNaRodada) break;
+    rodada++;
+  }
+  return {fotos:out, total:total};
+}
+function _toggleRelDia(){
+  var m=document.getElementById('rel-modo'), b=document.getElementById('rel-dia-box');
+  if(!m||!b) return;
+  b.style.display = (m.value==='dia') ? '' : 'none';
+  if(m.value==='dia') _popRelDias();
+}
+// So oferece os dias que TEM registro. Dia sem registro gerando
+// documento vazio so confunde.
+function _popRelDias(){
+  var cli=(document.getElementById('rel-cliente')||{}).value;
+  var mes=(document.getElementById('rel-mes')||{}).value;
+  var sel=document.getElementById('rel-dia'); if(!sel) return;
+  var dias={};
+  (DB.cronoFeitos||[]).forEach(function(x){
+    if(x&&x.local===cli&&x.data&&x.data.slice(0,7)===mes) dias[x.data]=(dias[x.data]||0)+1;
+  });
+  var lista=Object.keys(dias).sort();
+  sel.innerHTML = lista.length
+    ? lista.map(function(d){
+        return '<option value="'+d+'">'+new Date(d+'T12:00').toLocaleDateString('pt-BR')+' \u00b7 '+dias[d]+' tarefa(s)</option>';
+      }).join('')
+    : '<option value="">\u2014 sem registro neste m\u00eas \u2014</option>';
+}
+
 function _relTarefa(x){
   if(x.tarefa) return x.tarefa;
   var n=(typeof nomeTarefaPorId==='function')?nomeTarefaPorId(x.itemId):'';
@@ -7062,9 +7130,17 @@ function gerarRelatorio(){
   var out=document.getElementById('rel-saida');
   if(!cliente||!mes){ out.innerHTML='<div class="card">Escolha o cliente e o mês.</div>'; return; }
   var ano=+mes.split('-')[0], mm=+mes.split('-')[1];
+  // v46: dois formatos. O resumo e o que vai por e-mail todo mes;
+  // o detalhado existe para responder "e no dia 14?".
+  var modo=(document.getElementById('rel-modo')||{}).value||'resumo';
+  var diaEscolhido=(document.getElementById('rel-dia')||{}).value||'';
   var feitos=(DB.cronoFeitos||[]).filter(function(x){
     return x&&x.local===cliente&&x.data&&x.data.slice(0,7)===mes;
   }).sort(function(a,b){ return (a.data||'').localeCompare(b.data||'')||(a.hora||'').localeCompare(b.hora||''); });
+  if(modo==='dia'){
+    if(!diaEscolhido){ out.innerHTML='<div class="card">Escolha o dia.</div>'; return; }
+    feitos=feitos.filter(function(x){ return x.data===diaEscolhido; });
+  }
 
   if(!feitos.length){
     out.innerHTML='<div class="card" style="text-align:center;padding:30px;color:var(--text3);">Nenhuma tarefa registrada para <strong>'+escaparHTML(cliente)+'</strong> em '+MESES_EXT[mm-1]+'/'+ano+'.<br><span style="font-size:12px;">Clique em ☁️ Sincronizar (topo) para trazer os registros do App Campo.</span></div>';
@@ -7096,10 +7172,12 @@ function gerarRelatorio(){
   // prestacao de contas, nao proposta comercial. A marca ja esta no
   // cabecalho de toda pagina. Agora o documento comeca pelo fato.
   h+='<div class="rel-titulo">';
-  h+='<div class="rel-kicker">RELATÓRIO MENSAL DE SERVIÇOS</div>';
+  h+='<div class="rel-kicker">'+(modo==='dia'?'RELAT\u00d3RIO DETALHADO DO DIA':'RELAT\u00d3RIO MENSAL DE SERVI\u00c7OS')+'</div>';
   h+='<h1 class="rel-cliente">'+escaparHTML(cliente)+'</h1>';
   h+='<div class="rel-titulo-linha">';
-  h+='<span class="rel-periodo">'+MESES_EXT[mm-1].toUpperCase()+' / '+ano+'</span>';
+  h+='<span class="rel-periodo">'+(modo==='dia'
+      ? new Date(diaEscolhido+'T12:00').toLocaleDateString('pt-BR')
+      : MESES_EXT[mm-1].toUpperCase()+' / '+ano)+'</span>';
   h+='<span class="rel-emitido">Emitido em '+new Date().toLocaleDateString('pt-BR')+'</span>';
   h+='</div></div>';
 
@@ -7128,39 +7206,71 @@ function gerarRelatorio(){
      ' no atendimento deste local no período, conforme o quadro contratado. '+
      'Todos os registros abaixo foram feitos em campo, com data, hora e foto.</p></div>';
 
-  // ---------- SERVIÇOS POR DIA ----------
-  h+='<div class="rel-sec"><h2>Serviços executados</h2>';
+  // ---------- SERVIÇOS ----------
   var porDia={};
   feitos.forEach(function(x){ (porDia[x.data]=porDia[x.data]||[]).push(x); });
-  Object.keys(porDia).sort().forEach(function(data){
-    var d=new Date(data+'T12:00');
-    var diaSem=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'][d.getDay()];
-    h+='<div class="rel-dia"><div class="rel-dia-hdr">'+d.toLocaleDateString('pt-BR')+' <span>· '+diaSem+'</span><em>'+porDia[data].length+' tarefa(s)</em></div>';
-    porDia[data].forEach(function(x){
-      var fotos=fotosDaTarefa(x);
-      h+='<div class="rel-item"><div class="rel-item-txt"><div class="ri-nome">✔ '+escaparHTML(_relTarefa(x))+'</div>';
-      // v41: sem nome de colaborador na linha do serviço, pelo mesmo motivo
-      h+='<div class="ri-meta">Concluído às '+(x.hora||'—')+'</div>';
-      if(x.obs) h+='<div class="ri-obs">📝 '+escaparHTML(x.obs)+'</div>';
-      h+='</div>';
-      if(fotos.length){
-        h+='<div class="rel-fotos">'+fotos.slice(0,6).map(function(f){
-          return '<img src="'+thumbFoto(f.id,600)+'" loading="lazy" onclick="abrirFoto(\''+f.id+'\')">';
-        }).join('')+'</div>';
+  var DIAS_SEM=['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado'];
+
+  if(modo==='resumo'){
+    // v46: UMA LINHA POR DIA. Antes era um bloco por tarefa com ate 6
+    // fotos cada. No Living sao ~80 tarefas/dia em tres cronogramas:
+    // o mes virava centenas de paginas e ~2.000 imagens buscadas do
+    // Drive de uma vez — o navegador travava antes de terminar.
+    h+='<div class="rel-sec"><h2>Serviços executados — dia a dia</h2>';
+    h+='<p class="rel-texto">Cada linha abaixo é um dia de atendimento, com a quantidade de tarefas registradas em campo e uma amostra fotográfica do dia. Para ver um dia por inteiro, solicite o relatório detalhado daquela data.</p>';
+    Object.keys(porDia).sort().forEach(function(data){
+      var d=new Date(data+'T12:00');
+      var r=_fotosDoDiaEspalhadas(porDia[data], 6);
+      h+='<div class="rd-linha">';
+      h+='<div class="rd-data"><b>'+d.toLocaleDateString('pt-BR')+'</b><span>'+DIAS_SEM[d.getDay()]+'</span></div>';
+      h+='<div class="rd-qtd">'+porDia[data].length+' tarefa'+(porDia[data].length>1?'s':'')+'</div>';
+      h+='<div class="rd-fotos">';
+      if(r.fotos.length){
+        // v46: a miniatura e de 44px — pedir 600px do Drive era peso de
+        // anexo a toa. Agora o pedido acompanha o tamanho real.
+        h+=r.fotos.map(function(f){
+          return '<img src="'+thumbFoto(f.id,200)+'" loading="lazy" onclick="abrirFoto(\''+f.id+'\')">';
+        }).join('');
+        if(r.total>r.fotos.length) h+='<span class="rd-mais">+'+(r.total-r.fotos.length)+' fotos</span>';
+      } else {
+        h+='<span class="rd-semfoto">sem registro fotográfico neste dia</span>';
       }
+      h+='</div></div>';
+    });
+    h+='</div>';
+  } else {
+    h+='<div class="rel-sec"><h2>Serviços executados</h2>';
+    Object.keys(porDia).sort().forEach(function(data){
+      var d=new Date(data+'T12:00');
+      h+='<div class="rel-dia"><div class="rel-dia-hdr">'+d.toLocaleDateString('pt-BR')+' <span>· '+DIAS_SEM[d.getDay()]+'</span><em>'+porDia[data].length+' tarefa(s)</em></div>';
+      porDia[data].forEach(function(x){
+        var fotos=fotosDaTarefa(x);
+        h+='<div class="rel-item"><div class="rel-item-txt"><div class="ri-nome">✔ '+escaparHTML(_relTarefa(x))+'</div>';
+        h+='<div class="ri-meta">Concluído às '+(x.hora||'—')+'</div>';
+        if(x.obs) h+='<div class="ri-obs">📝 '+escaparHTML(x.obs)+'</div>';
+        h+='</div>';
+        if(fotos.length){
+          h+='<div class="rel-fotos">'+fotos.slice(0,6).map(function(f){
+            return '<img src="'+thumbFoto(f.id,400)+'" loading="lazy" onclick="abrirFoto(\''+f.id+'\')">';
+          }).join('')+'</div>';
+        }
+        h+='</div>';
+      });
       h+='</div>';
     });
     h+='</div>';
-  });
-  h+='</div>';
+  }
 
   // ---------- OBSERVAÇÕES ----------
+  // v47: a tabela VOLTOU — o sindico precisa saber o que a equipe viu
+  // no predio. O que saiu de vez foi a coluna "Colaborador": o aviso
+  // interessa, quem anotou nao. Quem anotou continua no Gestao.
   if(obsList.length){
-    h+='<div class="rel-sec rel-quebra"><h2>Observações registradas em campo</h2>';
-    h+='<p class="rel-texto">Pontos anotados pela equipe durante a execução dos serviços, para conhecimento da administração.</p>';
-    h+='<table class="rel-tab"><thead><tr><th style="width:80px">Data</th><th>Tarefa</th><th>Observação</th><th style="width:120px">Colaborador</th></tr></thead><tbody>';
+    h+='<div class="rel-sec rel-quebra"><h2>O que a equipe observou no local</h2>';
+    h+='<p class="rel-texto">Pontos notados pela equipe da MJL durante a execução dos serviços e registrados no mesmo momento, em campo. São anotações de quem esteve no local, para conhecimento da administração.</p>';
+    h+='<table class="rel-tab"><thead><tr><th style="width:80px">Data</th><th style="width:34%">Onde / tarefa</th><th>O que foi observado</th></tr></thead><tbody>';
     obsList.forEach(function(x){
-      h+='<tr><td>'+new Date(x.data+'T12:00').toLocaleDateString('pt-BR')+'</td><td>'+escaparHTML(_relTarefa(x))+'</td><td>'+escaparHTML(x.obs)+'</td><td>'+escaparHTML(x.colaboradorNome||'—')+'</td></tr>';
+      h+='<tr><td>'+new Date(x.data+'T12:00').toLocaleDateString('pt-BR')+'</td><td>'+escaparHTML(_relTarefa(x))+'</td><td>'+escaparHTML(x.obs)+'</td></tr>';
     });
     h+='</tbody></table></div>';
   }
@@ -7605,7 +7715,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v45';
+  b.textContent='MJL Gestão v47';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
