@@ -3819,25 +3819,41 @@ function publicarLista(url, acao, chave, lista, rotulo, montar){
         // Agora o caminho de volta existe: trazer os que faltam, por id,
         // sem apagar nada do que ja esta neste navegador.
         var remotos=(d && d[chave]) ? d[chave] : [];
-        if(chave==='clientes' || chave==='cronogramas'){
-          var temAqui={}; lista.forEach(function(x){ if(x&&x.id) temAqui[x.id]=true; });
-          var faltam=remotos.filter(function(x){ return x && x.id && !temAqui[x.id]; });
-          if(faltam.length){
-            if(confirm('\u2139\uFE0F A planilha tem mais do que este navegador — '+rotulo+'.\n\n'+
-               'Aqui: '+lista.length+'   |   Na planilha: '+naPlanilha+'\n\n'+
-               'Posso TRAZER para cá os '+faltam.length+' que faltam. Nada do que já está '+
-               'neste navegador será apagado.\n\nTrazer agora?')){
-              _trazerDaPlanilha(chave, faltam, rotulo);
-              return;
-            }
+        // v44: CONTAR LINHA NAO E CONTAR CADASTRO.
+        // A trava comparava o numero de LINHAS da planilha com o numero de
+        // cadastros daqui. Se a planilha tem a mesma pessoa repetida, ou
+        // linhas velhas sem id, ela conta mais linhas e barra para sempre:
+        // nada sobe, nada desce, e o aviso volta a cada sincronizacao.
+        // O que importa e QUAIS ids existem la que nao existem aqui.
+        var temAqui={}; lista.forEach(function(x){ if(x&&x.id) temAqui[x.id]=true; });
+        var faltam=remotos.filter(function(x){ return x && x.id && !temAqui[x.id]; });
+        var semId=remotos.filter(function(x){ return !x || !x.id; }).length;
+
+        if(!faltam.length && !semId){
+          // Tudo que esta na planilha ja esta aqui. As linhas a mais sao
+          // repeticoes — publicar nao perde nada e ainda limpa a planilha.
+          _jaAvisei[chave]=false;
+          enviar();
+          return;
+        }
+
+        if(faltam.length && (chave==='clientes' || chave==='cronogramas')){
+          if(confirm('\u2139\uFE0F A planilha tem cadastros que não existem neste navegador — '+rotulo+'.\n\n'+
+             'Aqui: '+lista.length+'   |   Na planilha: '+naPlanilha+' linha(s), '+faltam.length+' que não estão aqui\n\n'+
+             'Posso TRAZER para cá esses '+faltam.length+'. Nada do que já está '+
+             'neste navegador será apagado.\n\nTrazer agora?')){
+            _trazerDaPlanilha(chave, faltam, rotulo);
+            return;
           }
         }
         alert('\u26A0\uFE0F NÃO publiquei '+rotulo+' para a planilha.\n\n'+
-          'Aqui neste navegador há '+lista.length+', e na planilha há '+naPlanilha+'.\n\n'+
-          'Publicar agora apagaria os que faltam aqui. Isso costuma acontecer quando o '+
+          'Aqui neste navegador: '+lista.length+'\n'+
+          'Na planilha: '+naPlanilha+' linha(s)'+
+          (faltam.length?(' \u2014 '+faltam.length+' que não estão aqui'):'')+
+          (semId?(' \u2014 '+semId+' linha(s) sem identificação'):'')+'\n\n'+
+          'Publicar agora apagaria o que falta aqui. Isso costuma acontecer quando o '+
           'Gestão é aberto num computador novo, noutro perfil do Chrome, ou depois de limpar os dados do site.\n\n'+
-          'O que fazer: use o computador onde a lista está completa. Se esta aqui é a certa e você '+
-          'apagou de propósito, fale comigo que eu libero a publicação.');
+          'O que fazer: use o computador onde a lista está completa, ou me mande esta mensagem que eu resolvo.');
         return;   // NÃO publica
       }
       enviar();
@@ -7428,7 +7444,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v43';
+  b.textContent='MJL Gestão v44';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
