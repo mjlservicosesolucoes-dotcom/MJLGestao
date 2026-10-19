@@ -279,6 +279,16 @@ tr:hover td{background:var(--brand-light);}
 .crono-ass-linha{flex:1;border-top:1px solid #22313f;padding-top:6px;font-size:11px;text-align:center;color:#3d4d5c;}
 .crono-rodape{margin-top:20px;padding-top:9px;border-top:1px solid #eef2f6;font-size:9.5px;color:#9aaaba;text-align:center;}
 @media(max-width:640px){.crono-card-hdr{flex-direction:column;align-items:flex-start;}.crono-assinaturas{gap:14px;}}
+/* v45 — CRONOGRAMA COM DESENHO. Linhas altas, desenho grande e o
+   numero do andar enorme, para quem reconhece o desenho e o numero
+   mas nao le a frase. */
+.cq-item{display:flex;align-items:center;gap:14px;padding:9px 10px;border-bottom:1.5px solid #e9eef3;break-inside:avoid;}
+.cq-box{width:26px;height:26px;border:2px solid #7a8a9a;border-radius:5px;flex-shrink:0;}
+.cq-ico{font-size:34px;line-height:1;width:44px;text-align:center;flex-shrink:0;}
+.cq-num{font-size:34px;font-weight:800;color:#1a4f7a;min-width:52px;text-align:center;line-height:1;flex-shrink:0;}
+.cq-txt{font-size:14px;color:#22313f;line-height:1.3;}
+.cq-txt small{display:block;font-size:11.5px;color:#7a8a9a;font-weight:600;}
+.crono-print.icones .crono-dia-nome{font-size:15px;padding:9px 12px;}
 </style>
 
 
@@ -814,7 +824,14 @@ tr:hover td{background:var(--brand-light);}
         </select>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">Encarregado e Supervisão enxergam o menu de Supervisão no App Campo.</div>
       </div>
-      <div class="fg"></div>
+      <div class="fg">
+        <label>🖼️ Modo de exibição no App Campo</label>
+        <select id="mc-icones">
+          <option value="nao">Normal — texto</option>
+          <option value="sim">Com desenho, número grande e voz</option>
+        </select>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">Cada tarefa aparece com o desenho da ação, o número do andar bem grande e um botão que lê em voz alta. Não aparece em relatório.</div>
+      </div>
     </div>
     <div class="form-row">
       <div class="fg"><label>Telefone</label><input type="tel" id="mc-tel" placeholder="(21) 99999-0000"></div>
@@ -1247,6 +1264,7 @@ tr:hover td{background:var(--brand-light);}
   <div class="modal-body">
     <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
       <button class="btn btn-ghost btn-sm" onclick="imprimirCronograma()">🖨️ Imprimir</button>
+      <button class="btn btn-ghost btn-sm" id="btn-crono-icones" title="Versão com desenhos e números grandes">🖼️ Imprimir com desenhos</button>
       <button class="btn btn-ghost btn-sm" id="btn-editar-crono">✏️ Editar</button>
       <button class="btn btn-danger btn-sm" id="btn-excluir-crono">🗑️ Excluir</button>
     </div>
@@ -3878,6 +3896,9 @@ function sincronizar(){
       // isso o App Campo sempre recebia "colaborador" e o botao de
       // Supervisao nao aparecia para ninguem.
       perfil:c.perfil||'colaborador',
+      // v45: campo novo no Gestao EXIGE entrar nesta lista, senao ele
+      // salva aqui e nunca chega no App Campo.
+      modoIcones:c.modoIcones?true:false,
       clientes:(c.clientesIds&&c.clientesIds.length?c.clientesIds:[c.clienteId]).map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
     }));
   });
@@ -3911,7 +3932,7 @@ function sincronizar(){
       if(d?.colaboradores&&d.colaboradores.length&&!DB.colaboradores.length){
         // v23: perfil tambem vem do Sheets. Sem isso, abrir o Gestao num
         // computador novo rebaixava todo encarregado para colaborador.
-        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo',perfil:c.perfil||'colaborador'});});
+        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo',perfil:c.perfil||'colaborador',modoIcones:c.modoIcones===true||c.modoIcones==='true'});});
         salvarDB();renderDash();
         alert('📥 '+d.colaboradores.length+' colaboradores importados do Sheets para este dispositivo. Confira o cliente/escala de cada um.');
       }
@@ -4109,6 +4130,7 @@ function abrirModalCol(id){
     document.getElementById('mc-func').value=c.funcao;
     document.getElementById('mc-status').value=c.status;
     if(document.getElementById('mc-perfil')) document.getElementById('mc-perfil').value=c.perfil||'colaborador';
+    if(document.getElementById('mc-icones')) document.getElementById('mc-icones').value=c.modoIcones?'sim':'nao';
     document.getElementById('mc-tel').value=c.tel||'';
     document.getElementById('mc-obs').value=c.obs||'';
     document.getElementById('mc-escala').value=c.escala||'6x1';
@@ -4159,6 +4181,7 @@ function salvarCol(){
     funcao:document.getElementById('mc-func').value,
     status:document.getElementById('mc-status').value,
     perfil:document.getElementById('mc-perfil')?document.getElementById('mc-perfil').value:'colaborador',
+    modoIcones:document.getElementById('mc-icones')?document.getElementById('mc-icones').value==='sim':false,
     tel:document.getElementById('mc-tel').value.trim(),
     clienteId, clientesIds, posto,
     obs:document.getElementById('mc-obs').value.trim(),
@@ -5287,6 +5310,80 @@ function _areasDoCronoAtual(){
   return (c&&c.qrModo==='area'&&c.areas&&c.areas.length)?c.areas.slice():[];
 }
 function _txtTarefa(t){ return (typeof t==='string')?t:((t&&(t.texto||t.tarefa))||''); }
+
+// ================================================================
+// v45 — ICONES DAS TAREFAS
+// Para quem nao le, a tarefa precisa ser reconhecida pelo DESENHO
+// (a acao) e pelo NUMERO (o lugar). O texto continua ali para quem
+// le e para o relatorio sair igual ao de todo mundo.
+// ESTE BLOCO E GEMEO do que esta no App Campo — se mudar aqui, mudar la.
+// ================================================================
+var MJL_ICONES = [
+  {k:'varrer',  e:'\u{1F9F9}', n:'Varrer'},
+  {k:'pano',    e:'\u{1F9FD}', n:'Passar pano'},
+  {k:'lavar',   e:'\u{1FAA3}', n:'Lavar com balde'},
+  {k:'agua',    e:'\u{1F4A7}', n:'Mangueira / água'},
+  {k:'lixo',    e:'\u{1F5D1}️', n:'Lixo / lixeira'},
+  {k:'vidro',   e:'\u{1FA9F}', n:'Vidro / janela'},
+  {k:'porta',   e:'\u{1F6AA}', n:'Porta'},
+  {k:'banheiro',e:'\u{1F6BB}', n:'Banheiro / vestiário'},
+  {k:'elevador',e:'\u{1F6D7}', n:'Elevador'},
+  {k:'escada',  e:'\u{1FA9C}', n:'Escada'},
+  {k:'andar',   e:'\u{1F3E2}', n:'Andar'},
+  {k:'hall',    e:'\u{1F6CB}\uFE0F', n:'Hall / entrada'},
+  {k:'teia',    e:'\u{1F578}️', n:'Teia de aranha'},
+  {k:'piscina', e:'\u{1F3CA}', n:'Piscina'},
+  {k:'jardim',  e:'\u{1FAB4}', n:'Jardim / plantas'},
+  {k:'portaria',e:'\u{1F6CE}️', n:'Portaria / guarita'},
+  {k:'salao',   e:'\u{1F389}', n:'Salão de festas'},
+  {k:'academia',e:'\u{1F3CB}️', n:'Academia'},
+  {k:'garagem', e:'\u{1F697}', n:'Garagem'},
+  {k:'repor',   e:'\u{1F4E6}', n:'Repor material'},
+  {k:'geral',   e:'✅', n:'Geral'}
+];
+function iconeEmoji(k){
+  for(var i=0;i<MJL_ICONES.length;i++) if(MJL_ICONES[i].k===k) return MJL_ICONES[i].e;
+  return '✅';
+}
+// Adivinha o icone pelo texto. A ordem IMPORTA: o teste mais
+// especifico vem antes. "portas das lixeiras" e lixeira, nao porta.
+function iconeSugerido(txt){
+  var s=String(txt||'').toLowerCase();
+  if(/teia|aranha/.test(s)) return 'teia';
+  if(/piscina/.test(s)) return 'piscina';
+  if(/sal[ãa]o|festa|play|jogos/.test(s)) return 'salao';
+  if(/academia/.test(s)) return 'academia';
+  if(/garagem|estacionamento/.test(s)) return 'garagem';
+  if(/guarita|portaria|port[ãa]o|recep/.test(s)) return 'portaria';
+  if(/elevador/.test(s)) return 'elevador';
+  if(/banheiro|vesti[áa]rio|sanit|lavabo/.test(s)) return 'banheiro';
+  if(/vidro|janela|espelho/.test(s)) return 'vidro';
+  if(/escada/.test(s)) return 'escada';
+  if(/jardim|planta|florestinha|grama|árvore|arvore/.test(s)) return 'jardim';
+  if(/lixeir|lix[oa]|bombona|gal[õo]es|gal[ãa]o/.test(s)) return 'lixo';
+  if(/porta/.test(s)) return 'porta';
+  if(/repor|material|cloro|sab[ãa]o|papel higi/.test(s)) return 'repor';
+  if(/hall|entrada|lobby|recep\u00e7/.test(s)) return 'hall';
+  if(/ralo|grelha|calha/.test(s)) return 'agua';
+  if(/mangueira|regar/.test(s)) return 'agua';
+  if(/lava|lavar|lavaç|lava[cç][aã]o/.test(s)) return 'lavar';
+  if(/pano|passar/.test(s)) return 'pano';
+  if(/varr|vassoura/.test(s)) return 'varrer';
+  if(/andar|corredor/.test(s)) return 'andar';
+  return 'geral';
+}
+// Icone guardado na tarefa, ou o adivinhado. Guardar so o que foge da
+// sugestao mantem o registro pequeno — cabe no limite da planilha.
+function _iconeTarefa(t){
+  if(t && typeof t==='object' && t.icone) return t.icone;
+  return iconeSugerido(_txtTarefa(t));
+}
+// "Andar 3" -> "3". E o que a pessoa reconhece sem ler a palavra.
+function _numDaArea(a){
+  var m=String(a||'').match(/(\d+)\s*$/);
+  return m?m[1]:'';
+}
+
 // ===== v24: AREAS DA TAREFA (Andar 1-9, Hall, Garagem...) =====
 // Escreve-se as areas UMA vez aqui; no App Campo cada area vira uma
 // tarefa propria, com foto e horario separados. MESMA funcao existe
@@ -5343,11 +5440,22 @@ function _selArea(area){
     '<option value="">— sem área —</option>'+
     areas.map(function(a){ return '<option'+(a===area?' selected':'')+'>'+escaparHTML(a)+'</option>'; }).join('')+'</select>';
 }
+// v45: a pessoa escolhe o desenho da tarefa. Ja vem preenchido com o
+// palpite do texto, entao na maioria das vezes nao precisa mexer.
+function _selIcone(k){
+  return '<select class="ti-icone" title="Desenho da tarefa" onchange="this.closest(\'.tarefa-item\').dataset.icone=this.value;" '+
+    'style="font-size:15px;padding:2px 3px;border-radius:6px;border:1.5px solid var(--border);width:52px;">'+
+    MJL_ICONES.map(function(ic){
+      return '<option value="'+ic.k+'"'+(ic.k===k?' selected':'')+'>'+ic.e+'</option>';
+    }).join('')+'</select>';
+}
+
 function renderTarefaItem(dia, t, idx){
   var txt=_txtTarefa(t), area=_areaTarefa(t), areas=_areasTarefa(t);
   var nExp=expandirAreas({areas:areas}).length;
-  return '<div class="tarefa-item" data-txt="'+escaparHTML(txt)+'" data-area="'+escaparHTML(area)+'" data-areas="'+escaparHTML(areas)+'" style="flex-wrap:wrap;">'+
+  return '<div class="tarefa-item" data-txt="'+escaparHTML(txt)+'" data-area="'+escaparHTML(area)+'" data-areas="'+escaparHTML(areas)+'" data-icone="'+escaparHTML(_iconeTarefa(t))+'" style="flex-wrap:wrap;">'+
     '<span style="color:var(--text3);font-size:12px;">'+(idx+1)+'.</span>'+
+    _selIcone(_iconeTarefa(t))+
     '<span class="ti-txt" style="flex:1;">'+escaparHTML(txt)+'</span>'+
     _selArea(area)+
     '<button class="ti-del" onclick="removerTarefa('+dia+',this)">\u00d7</button>'+
@@ -5403,10 +5511,15 @@ function copiarDiaPara(diaOrigem, diaDestino){
 function _objTarefa(ti){
   var a=(ti.dataset.area||'').trim();
   var ar=((ti.querySelector('.ti-areas')||{}).value||ti.dataset.areas||'').trim();
-  if(!a && !ar) return ti.dataset.txt;
+  // v45: so guarda o icone quando a pessoa escolheu um diferente do
+  // palpite. Icone igual ao palpite nao ocupa espaco no registro.
+  var ic=((ti.querySelector('.ti-icone')||{}).value||ti.dataset.icone||'').trim();
+  if(ic && ic===iconeSugerido(ti.dataset.txt)) ic='';
+  if(!a && !ar && !ic) return ti.dataset.txt;
   var o={texto:ti.dataset.txt};
   if(a) o.area=a;
   if(ar) o.areas=ar;
+  if(ic) o.icone=ic;
   return o;
 }
 
@@ -7211,6 +7324,7 @@ function verCronograma(id){
   if(!c) return;
   document.getElementById('mvc-crono-titulo').textContent = c.nome;
   document.getElementById('btn-editar-crono').onclick = function(){ fecharModal('modal-ver-crono'); editarCronograma(id); };
+  (function(){ var b=document.getElementById('btn-crono-icones'); if(b) b.onclick=function(){ imprimirCronoIcones(id); }; })();
   document.getElementById('btn-excluir-crono').onclick = function(){ excluirCronograma(id); };
   var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
   var html = _montarCronoHTML(c);
@@ -7302,6 +7416,53 @@ function _montarCronoHTML(c){
   html += '<div class="crono-rodape">MJL Serviços e Soluções | CNPJ 46.636.732/0001-73 | (21) 96838-1313 | contato@mjlservicosesolucoes.com.br | Qualidade e Excelência em Serviços</div>';
   html += '</div>';
   return html;
+}
+
+// v45: mesma lista, outra forma de mostrar. Uma linha por area, com
+// o desenho da acao e o numero do lugar bem grandes.
+function _montarCronoHTMLIcones(c){
+  var diasStr = ordenaDias(c.dias).map(function(d){ return DIAS_NOMES[d]; }).join(', ');
+  var h='<div id="crono-para-imprimir" class="crono-print icones">';
+  h+='<div class="crono-print-hdr">';
+  h+='<div><div class="emp-nome">MJL Serviços e Soluções</div><div class="emp-sub">QUALIDADE E EXCELÊNCIA EM SERVIÇOS</div></div>';
+  h+='<div style="margin-left:auto;text-align:right;"><div style="font-size:13px;font-weight:700;color:var(--brand);">CRONOGRAMA DE LIMPEZA</div><div style="font-size:11px;color:var(--text2);">'+escaparHTML(c.cliente||'')+'</div></div>';
+  h+='</div>';
+  h+='<div class="crono-print-titulo">'+escaparHTML(c.nome||'')+'</div>';
+  h+='<div class="crono-print-info">Dias: '+diasStr+'</div>';
+  var linha=function(t,nomeArea){
+    var ic=iconeEmoji(_iconeTarefa(t));
+    var num=_numDaArea(nomeArea);
+    return '<div class="cq-item"><div class="cq-box"></div>'+
+      '<div class="cq-ico">'+ic+'</div>'+
+      (num?'<div class="cq-num">'+num+'</div>':'<div class="cq-num" style="font-size:20px;">&nbsp;</div>')+
+      '<div class="cq-txt">'+escaparHTML(_txtTarefa(t))+
+      (nomeArea?'<small>'+escaparHTML(nomeArea)+'</small>':'')+'</div></div>';
+  };
+  var bloco=function(titulo,tarefas){
+    if(!tarefas||!tarefas.length) return '';
+    var r='<div class="crono-dia-bloco"><div class="crono-dia-nome">'+titulo+'</div><div class="crono-dia-tarefas">';
+    tarefas.forEach(function(t){
+      var ex=expandirAreas(t);
+      if(ex.length){ ex.forEach(function(a){ r+=linha(t,a); }); return; }
+      r+=linha(t,_areaTarefa(t));
+    });
+    return r+'</div></div>';
+  };
+  h+=bloco('\u{1F501} TODO DIA', c.tarefasDiarias||[]);
+  ordenaDias(c.dias).forEach(function(d){
+    h+=bloco(DIAS_NOMES[d].toUpperCase(), (c.tarefasPorDia&&c.tarefasPorDia[d])||[]);
+  });
+  h+=bloco('\u{1F501} TAREFAS PERIÓDICAS', c.periodicas||[]);
+  if(c.obs) h+='<div style="background:var(--yellow-light);border:1px solid #f5d88e;border-radius:6px;padding:10px;margin-top:12px;font-size:12px;">\u26A0\uFE0F <strong>Obs.:</strong> '+escaparHTML(c.obs)+'</div>';
+  h+='<div class="crono-assinaturas"><div class="crono-ass-linha">Assinatura do Colaborador</div><div class="crono-ass-linha">Assinatura do Responsável</div><div class="crono-ass-linha">Data</div></div>';
+  h+='<div class="crono-rodape">MJL Serviços e Soluções | CNPJ 46.636.732/0001-73 | (21) 96838-1313</div>';
+  return h+'</div>';
+}
+
+function imprimirCronoIcones(id){
+  var c = ler('mjl_cronogramas',[]).find(function(x){ return x.id===id; });
+  if(!c){ alert('Cronograma não encontrado.'); return; }
+  _mandarParaOPapel(_montarCronoHTMLIcones(c));
 }
 
 function imprimirCronogramaId(id){
@@ -7444,7 +7605,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v44';
+  b.textContent='MJL Gestão v45';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
