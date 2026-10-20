@@ -724,6 +724,11 @@ tr:hover td{background:var(--brand-light);}
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
           <div style="flex:1;min-width:200px;"><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Cliente / Condomínio</label>
             <select id="qr-cliente" onchange="gerarQRs()" style="width:100%;padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;"></select></div>
+          <div><label style="font-size:11px;color:var(--text3);display:block;margin-bottom:4px;">Cópias de cada</label>
+            <select id="qr-copias" onchange="gerarQRs()" style="padding:9px;border-radius:8px;border:1.5px solid var(--border);font-size:13px;">
+              <option value="1">1</option><option value="2">2</option><option value="4" selected>4</option>
+              <option value="6">6</option><option value="8">8</option><option value="12">12</option>
+            </select></div>
           <button class="btn btn-primary" onclick="gerarQRs()">🔳 Gerar QR codes</button>
           <button class="btn btn-ghost" onclick="imprimirQRs()">🖨️ Imprimir adesivos</button>
         </div>
@@ -7031,7 +7036,23 @@ function gerarQRs(){
   var c=(DB.clientes||[]).find(function(x){ return x.nome===nome; })||{};
   var alvos=(c.qrModo==='area'&&c.areas&&c.areas.length)?c.areas.slice():[''];
   if(typeof qrcode!=='function'){ out.innerHTML='<div class="card">Não foi possível carregar o gerador de QR.</div>'; return; }
-  out.innerHTML='<div id="qr-para-imprimir" class="qr-folha">'+alvos.map(function(a){ return _adesivo(nome,a); }).join('')+'</div>';
+  // v49: COPIAS. No modo "condominio inteiro" o codigo e um so para o predio
+  // todo, e o mesmo adesivo vai no hall, na garagem, no elevador. Antes saia
+  // um por folha e era preciso imprimir a pagina varias vezes.
+  // O desenho do QR e identico, entao ele e montado UMA vez e repetido —
+  // gerar doze vezes o mesmo codigo e trabalho a toa.
+  var nCop=parseInt((document.getElementById('qr-copias')||{}).value||'1',10);
+  if(!(nCop>=1&&nCop<=12)) nCop=1;
+  var folha='';
+  alvos.forEach(function(a){
+    var um=_adesivo(nome,a);
+    for(var i=0;i<nCop;i++) folha+=um;
+  });
+  out.innerHTML='<div id="qr-para-imprimir" class="qr-folha">'+folha+'</div>';
+  var _tot=alvos.length*nCop;
+  out.insertAdjacentHTML('afterbegin','<p class="no-print" style="font-size:12px;color:var(--text3);margin:0 0 10px;">'+
+    _tot+' adesivo'+(_tot>1?'s':'')+' nesta folha'+(alvos.length>1?(' \u2014 '+alvos.length+' áreas \u00d7 '+nCop):'')+
+    '. Cada folha A4 comporta 4.</p>');
 }
 function imprimirQRs(){
   var el=document.getElementById('qr-para-imprimir');
@@ -7723,7 +7744,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v48';
+  b.textContent='MJL Gestão v49';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
