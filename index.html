@@ -291,6 +291,17 @@ tr:hover td{background:var(--brand-light);}
 .crono-ass-linha{flex:1;border-top:1px solid #22313f;padding-top:6px;font-size:11px;text-align:center;color:#3d4d5c;}
 .crono-rodape{margin-top:20px;padding-top:9px;border-top:1px solid #eef2f6;font-size:9.5px;color:#9aaaba;text-align:center;}
 @media(max-width:640px){.crono-card-hdr{flex-direction:column;align-items:flex-start;}.crono-assinaturas{gap:14px;}}
+/* v52 — cadastro completo na planilha + importador + trazer colaborador */
+.imp-tab{width:100%;border-collapse:collapse;font-size:12px;}
+.imp-tab th{background:#f4f8fb;color:#1a4f7a;text-align:left;padding:7px 9px;font-size:11px;letter-spacing:.3px;position:sticky;top:0;}
+.imp-tab td{padding:6px 9px;border-bottom:1px solid #eef2f6;vertical-align:top;}
+.imp-novo{color:#1e7e4a;font-weight:700;}
+.imp-atu{color:#1a4f7a;font-weight:700;}
+.imp-erro{color:#c0392b;font-weight:700;}
+.imp-aviso{font-size:11px;color:#8a6d1a;background:#fff8e1;border:1px solid #f3e2b0;border-radius:6px;padding:2px 6px;display:inline-block;margin-top:3px;}
+.imp-kpis{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px;}
+.imp-kpi{background:var(--surface);border:1px solid var(--border);border-left:3px solid var(--brand);border-radius:8px;padding:8px 12px;font-size:12px;}
+.imp-kpi b{display:block;font-size:19px;color:var(--brand);line-height:1.1;}
 /* v45 — CRONOGRAMA COM DESENHO. Linhas altas, desenho grande e o
    numero do andar enorme, para quem reconhece o desenho e o numero
    mas nao le a frase. */
@@ -507,7 +518,10 @@ tr:hover td{background:var(--brand-light);}
     <div class="page" id="page-colaboradores">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <strong style="font-size:15px;color:var(--brand)">Colaboradores</strong>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalCol()">+ Novo</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-ghost btn-sm" onclick="abrirImportarCol()">📥 Importar da planilha</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalCol()">+ Novo</button>
+        </div>
       </div>
       <div class="search-wrap">
         <svg class="search-ico" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -1193,6 +1207,32 @@ tr:hover td{background:var(--brand-light);}
       <button class="btn btn-primary" style="flex:1" onclick="confirmarAjustePonto()">✅ Salvar ajuste</button>
       <button class="btn btn-ghost" onclick="fecharModal('modal-ajuste-ponto')">Cancelar</button>
     </div>
+  </div>
+</div></div>
+
+<!-- MODAL IMPORTAR COLABORADORES -->
+<div id="modal-imp-col" class="modal-overlay hidden"><div class="modal" style="max-width:860px;">
+  <div class="modal-hdr"><h3>📥 Importar colaboradores da planilha</h3><button class="modal-cls" onclick="fecharModal('modal-imp-col')">×</button></div>
+  <div class="modal-body">
+    <p style="font-size:12.5px;color:var(--text2);margin:0 0 10px;">
+      Na planilha, selecione as linhas <strong>com o cabeçalho</strong>, copie (Ctrl+C) e cole aqui.
+      Nada é gravado antes de você conferir e confirmar. <strong>Ninguém é apagado</strong> — quem já está
+      cadastrado e não aparece na planilha continua como está.
+    </p>
+    <div class="fg" style="max-width:420px;margin-bottom:10px;">
+      <label>Qual nome usar no app e na folha de ponto</label>
+      <select id="imp-col-nome">
+        <option value="completo">Nome completo (coluna A) — é o que vale em documento</option>
+        <option value="app">Nome no app (coluna B) — como a equipe chama a pessoa</option>
+      </select>
+    </div>
+    <textarea id="imp-col-txt" rows="7" placeholder="Cole aqui (Ctrl+V)" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px;padding:9px;border-radius:8px;border:1.5px solid var(--border);"></textarea>
+    <div style="display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="conferirImportCol()">🔍 Conferir</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('imp-col-txt').value='';document.getElementById('imp-col-saida').innerHTML='';_impColPront=null;">Limpar</button>
+      <button class="btn btn-ghost" onclick="fecharModal('modal-imp-col')">Cancelar</button>
+    </div>
+    <div id="imp-col-saida" style="margin-top:14px;"></div>
   </div>
 </div></div>
 
@@ -3636,6 +3676,187 @@ function gid(){ return Date.now().toString(36)+Math.random().toString(36).slice(
 function ini(n){ const p=(n||'?').trim().split(' '); return (p[0][0]+(p[1]?p[1][0]:'')).toUpperCase(); }
 function nCli(id){ const c=DB.clientes.find(x=>x.id===id); return c?c.nome:'—'; }
 
+// v51 ----------------------------------------------------------------
+// Reconstroi um colaborador vindo da planilha SEM perder campo nenhum.
+// Ate a v50 isto era um objeto de 8 campos com clienteId:'' fixo.
+// Regra: campo ausente na planilha NAO e campo vazio — cai no padrao,
+// e o padrao da escala e o que a folha de ponto usa, por isso importa.
+function _idDeCliente(nomeOuId){
+  var v=String(nomeOuId||'').trim();
+  if(!v) return '';
+  var porId=DB.clientes.find(function(c){ return c.id===v; });
+  if(porId) return porId.id;
+  var porNome=DB.clientes.find(function(c){ return String(c.nome||'').trim().toLowerCase()===v.toLowerCase(); });
+  return porNome?porNome.id:'';
+}
+function _listaIds(valor){
+  return String(valor||'').split('|').map(function(x){ return _idDeCliente(x); })
+         .filter(function(x){ return !!x; });
+}
+function _colabDaPlanilha(c){
+  c=c||{};
+  // Os ids vem da v51 em diante. Planilha antiga so tem nomes — da para
+  // reconstruir, desde que o cliente ja exista aqui.
+  var ids=_listaIds(c.clientesIds);
+  if(!ids.length) ids=_listaIds(c.clientes);
+  var principal=_idDeCliente(c.clienteId) || _idDeCliente(c.cliente) || (ids.length?ids[0]:'');
+  if(principal && ids.indexOf(principal)<0) ids.unshift(principal);
+  return {
+    id:c.id, nome:c.nome||'', cpf:String(c.cpf||''),
+    funcao:c.funcao||'Outro',
+    status:c.status||'ativo',
+    perfil:c.perfil||'colaborador',
+    modoIcones:(c.modoIcones===true||c.modoIcones==='true'||c.modoIcones==='TRUE'),
+    tel:c.tel||'',
+    clienteId:principal,
+    clientesIds:ids,
+    posto:ids.map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' / '),
+    obs:c.obs||'',
+    escala:c.escala||'6x1',
+    turno:c.turno||'diurno',
+    horario_entrada:c.horario_entrada||'',
+    horario_saida:c.horario_saida||'',
+    carga_diaria:c.carga_diaria||'07:20',
+    saldo_anterior:c.saldo_anterior||'00:00',
+    matricula:c.matricula||'',
+    volante:(c.volante===true||c.volante==='true'||ids.length>1)
+  };
+}
+// O modulo de ponto le de 'mjl_gestao_cols', nao de DB.colaboradores.
+// Importar sem espelhar aqui deixaria a folha de ponto vazia.
+function _gravarColsPonto(){
+  try{
+    var atuais=ler('mjl_gestao_cols',[]);
+    var porId={}; atuais.forEach(function(x){ if(x&&x.id) porId[x.id]=x; });
+    DB.colaboradores.forEach(function(c){ if(c&&c.id) porId[c.id]=c; });
+    salvar('mjl_gestao_cols', Object.keys(porId).map(function(k){ return porId[k]; }));
+  }catch(e){}
+}
+
+// v51 ----------------------------------------------------------------
+// IMPORTADOR: colar da planilha de cadastro -> conferir -> gravar.
+// Nunca apaga ninguem. Casa por CPF (so digito), e por id quando houver.
+var _impColPront=null;
+var COL_IMP=['nomeCompleto','nomeApp','cpf','tel','rg','tipo','cltDe','admissao','status',
+  'funcao','perfil','cliente','escala','turno','entrada','saida','carga','modo',
+  'matricula','sal','he','adnot','insal','outros','vt','vr','benef','obs'];
+function _soDig(v){ return String(v||'').replace(/\D+/g,''); }
+function abrirImportarCol(){
+  _impColPront=null;
+  var t=document.getElementById('imp-col-txt'); if(t) t.value='';
+  var o=document.getElementById('imp-col-saida'); if(o) o.innerHTML='';
+  // Este app nao tem helper abrirModal(): cada tela abre removendo a
+  // classe. E fecharModal ainda poe display:none, entao abrir exige
+  // limpar o display tambem, senao o modal fica invisivel na segunda vez.
+  var m=document.getElementById('modal-imp-col');
+  if(m){ m.classList.remove('hidden'); m.style.display=''; }
+}
+function _linhasColadas(txt){
+  var linhas=String(txt||'').replace(/\r/g,'').split('\n')
+    .filter(function(l){ return l.trim()!==''; });
+  return linhas.map(function(l){ return l.split('\t'); });
+}
+function conferirImportCol(){
+  var txt=(document.getElementById('imp-col-txt')||{}).value||'';
+  var saida=document.getElementById('imp-col-saida');
+  var linhas=_linhasColadas(txt);
+  if(linhas.length<2){
+    saida.innerHTML='<div class="info-box red">Cole as linhas da planilha <strong>junto com o cabeçalho</strong>. Vieram '+linhas.length+' linha(s).</div>';
+    _impColPront=null; return;
+  }
+  // A primeira linha e o cabecalho e e descartada. Conferir que ela
+  // realmente e cabecalho evita importar a Eledilce como titulo.
+  var cab=linhas[0].map(function(x){ return String(x||'').toLowerCase(); }).join(' ');
+  if(cab.indexOf('nome')<0){
+    saida.innerHTML='<div class="info-box red">A primeira linha não parece ser o cabeçalho (não achei "Nome"). Copie incluindo a linha de títulos.</div>';
+    _impColPront=null; return;
+  }
+  var usarApelido=(document.getElementById('imp-col-nome')||{}).value==='app';
+  // Duas listas diferentes, de proposito: "barra" impede o cadastro,
+  // "avisa" entra mas pede conferencia. Misturar as duas fazia a tela
+  // dizer "essas eu nao importo" e importar do mesmo jeito.
+  var novos=[], atualiza=[], barra=[], avisa=[];
+  linhas.slice(1).forEach(function(cel,i){
+    var g={};
+    COL_IMP.forEach(function(k,j){ g[k]=String(cel[j]||'').trim(); });
+    var nome=usarApelido?(g.nomeApp||g.nomeCompleto):(g.nomeCompleto||g.nomeApp);
+    var cpf=_soDig(g.cpf);
+    if(!nome){ barra.push('Linha '+(i+2)+': sem nome.'); return; }
+    if(cpf.length!==11){ barra.push('Linha '+(i+2)+' ('+nome+'): CPF com '+cpf.length+' dígito(s) — precisa de 11, é o login do App Campo.'); return; }
+    var jaTem=DB.colaboradores.find(function(c){ return _soDig(c.cpf)===cpf; });
+    var cliId=_idDeCliente(g.cliente);
+    if(g.cliente && !cliId) avisa.push(nome+': o local "'+g.cliente+'" não existe no cadastro deste Gestão. A pessoa entra SEM local — sem local não há ponto nem cronograma. Cadastre o local e importe de novo, ou abra o cadastro dela e escolha à mão.');
+    if(!g.cliente) avisa.push(nome+': sem local na planilha. A pessoa entra sem local.');
+    var obj={
+      id:jaTem?jaTem.id:gid(),
+      nome:nome, cpf:cpf,
+      funcao:g.funcao||'Outro',
+      status:(g.status||'ativo').toLowerCase(),
+      perfil:(g.perfil||'colaborador').toLowerCase(),
+      modoIcones:/^(sim|s|true|1|icone)/i.test(g.modo),
+      tel:g.tel||'',
+      clienteId:cliId,
+      clientesIds:cliId?[cliId]:[],
+      posto:cliId?nCli(cliId):'',
+      obs:g.obs||'',
+      escala:g.escala||'6x1',
+      turno:(g.turno||'diurno').toLowerCase(),
+      horario_entrada:g.entrada||'',
+      horario_saida:g.saida||'',
+      carga_diaria:g.carga||'07:20',
+      saldo_anterior:(jaTem&&jaTem.saldo_anterior)||'00:00',
+      matricula:g.matricula||'',
+      volante:false
+    };
+    if(jaTem) atualiza.push({obj:obj,antes:jaTem}); else novos.push({obj:obj,antes:null});
+  });
+  var h='';
+  if(barra.length){
+    h+='<div class="info-box red"><strong>'+barra.length+' linha(s) que eu NÃO importo:</strong><br>'+
+       barra.join('<br>')+'</div>';
+  }
+  if(avisa.length){
+    h+='<div class="info-box yellow"><strong>'+avisa.length+' aviso(s) — essas eu importo, mas confira:</strong><br>'+
+       avisa.join('<br>')+'</div>';
+  }
+  var tudo=novos.concat(atualiza);
+  if(!tudo.length){
+    h+='<div class="info-box yellow">Nada aproveitável nessa colagem.</div>';
+    saida.innerHTML=h; _impColPront=null; return;
+  }
+  h+='<div class="info-box blue"><strong>'+novos.length+'</strong> para cadastrar e <strong>'+atualiza.length+
+     '</strong> que já existem (casei pelo CPF) e vão ser atualizados. Ninguém é apagado.</div>';
+  h+='<div class="table-wrap"><table><thead><tr><th>O quê</th><th>Nome</th><th>CPF</th>'+
+     '<th>Função</th><th>Local</th><th>Escala / turno</th><th>Horário</th><th>Carga</th><th>Perfil</th><th>Ícones</th></tr></thead><tbody>';
+  tudo.forEach(function(r){
+    var o=r.obj;
+    h+='<tr><td>'+(r.antes?'<span class="badge b-andamento">atualiza</span>':'<span class="badge b-ativo">novo</span>')+'</td>'+
+       '<td><strong>'+o.nome+'</strong></td><td>'+o.cpf+'</td><td>'+o.funcao+'</td>'+
+       '<td>'+(o.clienteId?nCli(o.clienteId):'<span style="color:var(--red)">— sem local —</span>')+'</td>'+
+       '<td>'+o.escala+' '+o.turno+'</td>'+
+       '<td>'+((o.horario_entrada||o.horario_saida)?(o.horario_entrada+' às '+o.horario_saida):'—')+'</td>'+
+       '<td>'+o.carga_diaria+'</td><td>'+o.perfil+'</td><td>'+(o.modoIcones?'sim':'não')+'</td></tr>';
+  });
+  h+='</tbody></table></div>';
+  h+='<div style="margin-top:12px;"><button class="btn btn-primary" onclick="gravarImportCol()">\u2705 Gravar '+tudo.length+' cadastro(s)</button></div>';
+  saida.innerHTML=h;
+  _impColPront=tudo;
+}
+function gravarImportCol(){
+  if(!_impColPront||!_impColPront.length){ alert('Confira primeiro.'); return; }
+  var n=0, a=0;
+  _impColPront.forEach(function(r){
+    var i=DB.colaboradores.findIndex(function(c){ return c.id===r.obj.id; });
+    if(i>=0){ DB.colaboradores[i]=r.obj; a++; } else { DB.colaboradores.push(r.obj); n++; }
+  });
+  _gravarColsPonto();
+  salvarDB(); renderCol(); renderDash();
+  _impColPront=null;
+  fecharModal('modal-imp-col');
+  alert('\u2705 '+n+' cadastrado(s) e '+a+' atualizado(s).\n\nCada um escolhe a própria senha no primeiro acesso ao App Campo, usando o CPF.');
+  if(navigator.onLine) setTimeout(sincronizar,600);
+}
+
 const bStatusMap={aberto:'b-aberto',andamento:'b-andamento',fechado:'b-fechado'};
 const tStatusMap={aberto:'Aberto',andamento:'Em andamento',fechado:'Concluído'};
 const bColMap={ativo:'b-ativo',ferias:'b-ferias',afastado:'b-afastado'};
@@ -3830,6 +4051,20 @@ function _trazerDaPlanilha(chave, faltam, rotulo){
     faltam.forEach(function(x){ if(!jaC[x.id]) cr.push(x); });
     salvar('mjl_cronogramas', cr);
     try{ renderListaCronogramas&&renderListaCronogramas(); }catch(e){}
+  } else if(chave==='colaboradores'){
+    // v52: colaborador ficou de fora desta oferta desde a v43. O Gestao
+    // publica a LISTA INTEIRA, entao cadastro que nasce na planilha nao
+    // tinha como descer: dava o aviso travado de "NAO publiquei" e a
+    // unica saida era digitar tudo de novo neste navegador.
+    // Mescla por id, passando pelo _colabDaPlanilha para nao perder
+    // escala, turno, horario e carga diaria — que e do que a folha de
+    // ponto vive.
+    var jaCo={}; (DB.colaboradores||[]).forEach(function(x){ if(x&&x.id) jaCo[x.id]=true; });
+    faltam.forEach(function(x){ if(x&&x.id&&!jaCo[x.id]) DB.colaboradores.push(_colabDaPlanilha(x)); });
+    _gravarColsPonto();
+    salvarDB();
+    try{ renderCol&&renderCol(); }catch(e){}
+    try{ renderDash&&renderDash(); }catch(e){}
   } else { return; }
   // liberado: na proxima sincronizacao as duas listas ja batem
   _jaAvisei[chave]=false;
@@ -3879,7 +4114,7 @@ function publicarLista(url, acao, chave, lista, rotulo, montar){
           return;
         }
 
-        if(faltam.length && (chave==='clientes' || chave==='cronogramas')){
+        if(faltam.length && (chave==='clientes' || chave==='cronogramas' || chave==='colaboradores')){
           if(confirm('\u2139\uFE0F A planilha tem cadastros que não existem neste navegador — '+rotulo+'.\n\n'+
              'Aqui: '+lista.length+'   |   Na planilha: '+naPlanilha+' linha(s), '+faltam.length+' que não estão aqui\n\n'+
              'Posso TRAZER para cá esses '+faltam.length+'. Nada do que já está '+
@@ -3913,7 +4148,9 @@ function sincronizar(){
   // e chamados. Só envia quando há dados locais.
   // v40: passa pela conferência de tamanho antes de publicar
   publicarLista(url,'setColaboradores','colaboradores',DB.colaboradores,'os colaboradores',function(){
-    return DB.colaboradores.map(c=>({
+    return DB.colaboradores.map(function(c){
+      var ids=(c.clientesIds&&c.clientesIds.length)?c.clientesIds:(c.clienteId?[c.clienteId]:[]);
+      return {
       id:c.id,nome:c.nome,funcao:c.funcao,cpf:c.cpf,cliente:nCli(c.clienteId),status:c.status,
       // v23: o perfil de acesso ficava de fora desta lista. O campo existia
       // na tela, salvava neste navegador e NUNCA chegava na planilha — por
@@ -3923,8 +4160,31 @@ function sincronizar(){
       // v45: campo novo no Gestao EXIGE entrar nesta lista, senao ele
       // salva aqui e nunca chega no App Campo.
       modoIcones:c.modoIcones?true:false,
-      clientes:(c.clientesIds&&c.clientesIds.length?c.clientesIds:[c.clienteId]).map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
-    }));
+      // v51: TODO o resto do cadastro passa a subir. Ate a v50 esta lista
+      // levava 9 campos e MAIS NADA: telefone, escala, turno, horario,
+      // carga diaria, saldo anterior, matricula, observacao e volante
+      // existiam na tela, salvavam neste navegador e nunca chegavam na
+      // planilha. Quem abrisse o Gestao noutro aparelho recebia todo mundo
+      // com 6x1 diurno 07:20 — e a folha de ponto saia errada justamente
+      // para quem e 12x36 noturno.
+      tel:c.tel||'',
+      escala:c.escala||'6x1',
+      turno:c.turno||'diurno',
+      horario_entrada:c.horario_entrada||'',
+      horario_saida:c.horario_saida||'',
+      carga_diaria:c.carga_diaria||'07:20',
+      saldo_anterior:c.saldo_anterior||'00:00',
+      matricula:c.matricula||'',
+      obs:c.obs||'',
+      volante:c.volante?true:false,
+      // v51: os IDS tambem sobem. Os nomes abaixo continuam, porque e por
+      // eles que se LE a planilha; mas nome nao reconstroi vinculo — a
+      // importacao precisa do id, e ate a v50 ela gravava clienteId vazio.
+      clienteId:c.clienteId||'',
+      clientesIds:ids.join(' | '),
+      clientes:ids.map(function(i){return nCli(i);}).filter(function(n){return n&&n!=='—';}).join(' | ')
+      };
+    });
   });
   // v22: o cadastro de Clientes/Locais passa a ir para a planilha.
   // Ate a v21 ele existia SO neste navegador — endereco, dias de
@@ -3956,9 +4216,10 @@ function sincronizar(){
       if(d?.colaboradores&&d.colaboradores.length&&!DB.colaboradores.length){
         // v23: perfil tambem vem do Sheets. Sem isso, abrir o Gestao num
         // computador novo rebaixava todo encarregado para colaborador.
-        d.colaboradores.forEach(c=>{DB.colaboradores.push({id:c.id,nome:c.nome,funcao:c.funcao||'Outro',cpf:c.cpf||'',clienteId:'',status:c.status||'ativo',perfil:c.perfil||'colaborador',modoIcones:c.modoIcones===true||c.modoIcones==='true'});});
+        d.colaboradores.forEach(function(c){ DB.colaboradores.push(_colabDaPlanilha(c)); });
+        _gravarColsPonto();
         salvarDB();renderDash();
-        alert('📥 '+d.colaboradores.length+' colaboradores importados do Sheets para este dispositivo. Confira o cliente/escala de cada um.');
+        alert('\u{1F4E5} '+d.colaboradores.length+' colaborador(es) importado(s) do Sheets para este dispositivo.');
       }
     }).catch(()=>{});
   }
@@ -7744,7 +8005,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v49';
+  b.textContent='MJL Gestão v52';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
