@@ -291,7 +291,7 @@ tr:hover td{background:var(--brand-light);}
 .crono-ass-linha{flex:1;border-top:1px solid #22313f;padding-top:6px;font-size:11px;text-align:center;color:#3d4d5c;}
 .crono-rodape{margin-top:20px;padding-top:9px;border-top:1px solid #eef2f6;font-size:9.5px;color:#9aaaba;text-align:center;}
 @media(max-width:640px){.crono-card-hdr{flex-direction:column;align-items:flex-start;}.crono-assinaturas{gap:14px;}}
-/* v52 — cadastro completo na planilha + importador + trazer colaborador */
+/* v53 — cadastro completo na planilha + importador + trazer colaborador */
 .imp-tab{width:100%;border-collapse:collapse;font-size:12px;}
 .imp-tab th{background:#f4f8fb;color:#1a4f7a;text-align:left;padding:7px 9px;font-size:11px;letter-spacing:.3px;position:sticky;top:0;}
 .imp-tab td{padding:6px 9px;border-bottom:1px solid #eef2f6;vertical-align:top;}
@@ -4052,7 +4052,7 @@ function _trazerDaPlanilha(chave, faltam, rotulo){
     salvar('mjl_cronogramas', cr);
     try{ renderListaCronogramas&&renderListaCronogramas(); }catch(e){}
   } else if(chave==='colaboradores'){
-    // v52: colaborador ficou de fora desta oferta desde a v43. O Gestao
+    // v53: colaborador ficou de fora desta oferta desde a v43. O Gestao
     // publica a LISTA INTEIRA, entao cadastro que nasce na planilha nao
     // tinha como descer: dava o aviso travado de "NAO publiquei" e a
     // unica saida era digitar tudo de novo neste navegador.
@@ -6028,6 +6028,61 @@ function _supLinha(p, mostrarBotoes){
   return h;
 }
 
+// v53: o que o checklist da visita apontou, pra ver no cartao.
+function _supAvisosChecklist(c){
+  var out='';
+  [['uniformePessoas','Uniforme incompleto'],['epiPessoas','Sem EPI em uso']].forEach(function(par){
+    var m=c[par[0]]||{};
+    var maus=Object.keys(m).filter(function(k){ return (m[k]||{}).v==='nao'; });
+    if(!maus.length) return;
+    out+='<div style="font-size:13px;border-left:3px solid var(--red);padding:4px 0 4px 9px;margin-bottom:6px;">'+
+      '<strong>'+par[1]+'</strong><div style="color:var(--text2);">'+
+      maus.map(function(k){ return escaparHTML(m[k].nome||''); }).join(' · ')+'</div></div>';
+  });
+  if(c.cliente==='recl' && String(c.reclamacao||'').trim()){
+    out+='<div style="font-size:13px;border-left:3px solid #e67e22;padding:4px 0 4px 9px;margin-bottom:6px;">'+
+      '<strong>Reclamação do síndico/zelador</strong><div style="color:var(--text2);">'+
+      escaparHTML(String(c.reclamacao).trim())+'</div></div>';
+  }
+  return out ? ('<div style="margin-top:10px;">'+out+'</div>') : '';
+}
+
+// v53: quantas vezes cada pessoa ja foi avisada de uniforme ou EPI.
+// Conta pendencia ABERTA E RESOLVIDA de proposito: pra chamar, conversar
+// e, se for o caso, advertir, o que vale e o historico — resolver a
+// pendencia nao apaga que aconteceu.
+function _supReincidencia(){
+  var por={};
+  supPend().forEach(function(p){
+    if(!p || (p.motivo!=='uniforme' && p.motivo!=='epi')) return;
+    var nome=String(p.colaboradorNome||'').trim();
+    if(!nome) return;
+    var k=p.colaboradorId||nome;
+    var r=por[k]||(por[k]={nome:nome,uniforme:0,epi:0,total:0,ultima:'',locais:{}});
+    r[p.motivo]++; r.total++;
+    if(String(p.data||'')>r.ultima) r.ultima=String(p.data||'');
+    if(p.local) r.locais[p.local]=1;
+  });
+  var lista=Object.keys(por).map(function(k){ return por[k]; })
+    .sort(function(a,b){ return b.total-a.total || String(a.nome).localeCompare(String(b.nome)); });
+  if(!lista.length) return '';
+  return '<div class="card" style="margin-bottom:14px;border-left:4px solid #e67e22;">'+
+    '<div class="card-title">👕 Uniforme e EPI — quantas vezes cada um já foi avisado</div>'+
+    '<p style="font-size:12.5px;color:var(--text2);margin-bottom:10px;">Conta avisos abertos e já resolvidos: resolver não apaga que aconteceu. É esse histórico que dá embasamento pra conversar e, se precisar, advertir.</p>'+
+    '<table style="width:100%;border-collapse:collapse;font-size:13px;">'+
+    '<thead><tr style="text-align:left;color:var(--text3);font-size:11px;">'+
+      '<th style="padding:4px 0;">Colaborador</th><th style="width:70px;">Uniforme</th><th style="width:60px;">EPI</th><th style="width:92px;">Último</th></tr></thead><tbody>'+
+    lista.map(function(r){
+      var forte=r.total>=3;
+      return '<tr style="border-top:1px solid #eef2f6;">'+
+        '<td style="padding:6px 0;font-weight:'+(forte?'800':'600')+';color:'+(forte?'#c0392b':'inherit')+';">'+escaparHTML(r.nome)+
+          '<div style="font-size:11px;font-weight:400;color:var(--text3);">'+Object.keys(r.locais).map(escaparHTML).join(' · ')+'</div></td>'+
+        '<td>'+(r.uniforme||'—')+'</td><td>'+(r.epi||'—')+'</td>'+
+        '<td style="color:var(--text3);">'+_supData(r.ultima)+'</td></tr>';
+    }).join('')+
+    '</tbody></table></div>';
+}
+
 function renderSupervisao(){
   var sel=document.getElementById('sup-local');
   if(sel && !sel.dataset.pronto){
@@ -6069,6 +6124,11 @@ function renderSupervisao(){
             (i.colaborador?('<div style="font-size:11px;color:var(--text3);">registrado por '+escaparHTML(i.colaborador)+'</div>'):'')+'</div>';
         }).join('')+'</div>';
       }
+      // v53: uniforme/EPI por pessoa e a reclamacao aparecem no cartao,
+      // sem precisar imprimir o relatorio pra saber de quem foi.
+      var _ck=v.checklist||{};
+      var _av=_supAvisosChecklist(_ck);
+      if(_av) h+=_av;
       if(v.relatorio) h+='<div style="margin-top:10px;font-size:13px;background:#f8fafc;border:1px solid #e6ecf2;border-radius:8px;padding:9px 11px;"><strong>Relatório:</strong> '+escaparHTML(v.relatorio)+'</div>';
       if(v.assinatura&&v.assinatura.nome) h+='<div style="margin-top:8px;font-size:12px;color:var(--text3);">✍️ Recebido por '+escaparHTML(v.assinatura.nome)+(v.assinatura.funcao?(' ('+escaparHTML(v.assinatura.funcao)+')'):'')+'</div>';
       h+='</div>';
@@ -6108,6 +6168,7 @@ function renderSupervisao(){
        '<p style="font-size:12.5px;color:var(--text2);margin-bottom:10px;">Só vai para o celular do colaborador depois que você liberar. Até lá, o cliente não manda direto na equipe.</p>'+
        travadas.map(function(p){ return _supLinha(p,true); }).join('')+'</div>';
   }
+  h+=_supReincidencia();
   h+='<div class="card">'+
      '<div class="card-title">📥 Pendências da equipe — '+resto.filter(function(p){return p.status==='aberta';}).length+' aberta(s)</div>'+
      (resto.length?resto.map(function(p){ return _supLinha(p,true); }).join('')
@@ -6162,6 +6223,23 @@ function _vGaleria(lista){
 }
 function _vSelo(txt, cor){
   return '<span style="display:inline-block;background:'+cor+';color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.6px;padding:3px 9px;border-radius:12px;">'+txt+'</span>';
+}
+
+// v53: uma linha de checklist que pode ter resposta por pessoa.
+// Sem mapa de pessoas (visita antiga, do App Campo v28 ou anterior)
+// cai no resumo de sempre — relatorio velho continua saindo igual.
+function _relLinhaPessoas(rotulo, resumo, mapa, rot, paraSindico){
+  var ids = mapa ? Object.keys(mapa) : [];
+  if(!ids.length) return resumo ? ('<tr><td style="width:260px;">'+rotulo+'</td><td>'+(rot[resumo]||resumo)+'</td></tr>') : '';
+  if(paraSindico) return '<tr><td style="width:260px;">'+rotulo+'</td><td>'+(rot[resumo]||resumo)+'</td></tr>';
+  var linhas = ids.map(function(k){ return mapa[k]||{}; })
+    .sort(function(a,b){ return String(a.nome||'').localeCompare(String(b.nome||'')); })
+    .map(function(p){
+      var cor = p.v==='nao' ? '#c0392b' : (p.v==='ok' ? '#1e7e4a' : '#5a6a7a');
+      return '<div><strong style="color:'+cor+';">'+(rot[p.v]||p.v||'—')+'</strong> — '+
+        escaparHTML(p.nome||'')+(p.funcao?(' <span style="color:#7d8f9e;">('+escaparHTML(p.funcao)+')</span>'):'')+'</div>';
+    }).join('');
+  return '<tr><td style="width:260px;">'+rotulo+'</td><td>'+linhas+'</td></tr>';
 }
 
 function imprimirVisita(id, paraSindico){
@@ -6253,9 +6331,17 @@ function imprimirVisita(id, paraSindico){
     var rot={ok:'Sim',nao:'Não',na:'Não se aplica',recl:'Houve reclamação'};
     var rotLivro={ok:'Conferido',nao:'Não conferido',na:'Não tem'};
     h+='<div class="rel-sec"><h2>Checklist da visita</h2><table class="rel-tab"><tbody>';
-    if(c.uniforme) h+='<tr><td style="width:260px;">Uniforme completo</td><td>'+(rot[c.uniforme]||c.uniforme)+'</td></tr>';
-    if(c.epi)      h+='<tr><td>EPI em uso</td><td>'+(rot[c.epi]||c.epi)+'</td></tr>';
+    // v53: uniforme e EPI agora vem POR PESSOA do App Campo v29. No
+    // relatorio INTERNO sai nome por nome — e disso que sai a conversa
+    // e a advertencia. Na versao do SINDICO sai so o resultado do
+    // grupo, sem nome: mesma regra do resto do documento.
+    h+=_relLinhaPessoas('Uniforme completo', c.uniforme, c.uniformePessoas, rot, paraSindico);
+    h+=_relLinhaPessoas('EPI em uso', c.epi, c.epiPessoas, rot, paraSindico);
     if(c.cliente)  h+='<tr><td>Contato com síndico ou zelador</td><td>'+(rot[c.cliente]||c.cliente)+'</td></tr>';
+    // v53: a reclamacao vai nos DOIS relatorios. Ela veio do sindico ou
+    // do zelador, entao mostrar que foi registrada e a favor da MJL.
+    if(c.cliente==='recl' && String(c.reclamacao||'').trim())
+      h+='<tr><td>Reclamação registrada</td><td>'+escaparHTML(String(c.reclamacao).trim())+'</td></tr>';
     if(c.livro)    h+='<tr><td>Livro de ocorrências</td><td>'+(rotLivro[c.livro]||c.livro)+'</td></tr>';
     h+='</tbody></table></div>';
   }
@@ -8005,7 +8091,7 @@ if('serviceWorker' in navigator && location.protocol==='https:'){
 (function(){
   var b=document.createElement('div');
   b.style.cssText='position:fixed;bottom:4px;right:8px;font-size:10px;color:#9aa5b1;z-index:9999;pointer-events:none;background:rgba(255,255,255,.75);padding:1px 6px;border-radius:8px;';
-  b.textContent='MJL Gestão v52';
+  b.textContent='MJL Gestão v53';
   b.className='no-print';  // v42: o selinho de versao nao vai ao papel
   document.body.appendChild(b);
 })();
